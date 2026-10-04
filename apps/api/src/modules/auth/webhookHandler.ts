@@ -12,9 +12,9 @@
  */
 import type { Request, Response } from 'express';
 import { Webhook } from 'svix';
-import { supabaseAdmin } from '../lib/supabase.js';
-import { config } from '../config/env.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { supabaseAdmin } from '../../lib/supabase.js';
+import { config } from '../../config/env.js';
+import { AppError } from '../../middleware/errorHandler.js';
 
 interface ClerkEmailAddress {
   email_address: string;
@@ -71,7 +71,7 @@ export async function handleClerkWebhook(req: Request, res: Response): Promise<v
       'svix-id': svixId,
       'svix-timestamp': svixTimestamp,
       'svix-signature': svixSignature,
-    }) as ClerkWebhookEvent;
+    }) as unknown as ClerkWebhookEvent;
   } catch (err) {
     console.error('[Webhook] Signature verification failed:', err);
     res.status(400).json({ error: 'Invalid webhook signature' });

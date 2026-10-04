@@ -59,6 +59,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     let clerkUserId: string;
     try {
       const payload = await clerk.verifyToken(token);
+      if (!payload.sub) {
+        throw new AppError('Invalid session token', 401, 'TOKEN_INVALID');
+      }
       clerkUserId = payload.sub;
     } catch {
       throw new AppError('Invalid or expired session token', 401, 'TOKEN_INVALID');

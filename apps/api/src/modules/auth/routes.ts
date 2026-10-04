@@ -1,28 +1,14 @@
 /**
  * Auth Routes
  *
- * POST /api/v1/auth/webhook  — Clerk webhook (user sync)
+ * POST /api/v1/auth/webhook  — Registered in server.ts (raw body, before JSON parser)
  * GET  /api/v1/auth/me       — Returns current authenticated user's app record
  */
 import { Router } from 'express';
-import { handleClerkWebhook } from './webhookHandler.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { supabaseAdmin } from '../../lib/supabase.js';
 
 const router = Router();
-
-/**
- * Clerk webhook — must receive raw body for signature verification.
- * express.raw() is applied here specifically so the rest of the app
- * continues to use express.json().
- */
-import express from 'express';
-
-router.post(
-  '/webhook',
-  express.raw({ type: 'application/json' }),
-  handleClerkWebhook
-);
 
 /**
  * GET /auth/me

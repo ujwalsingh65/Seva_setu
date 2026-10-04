@@ -11,8 +11,8 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@clerk/react';
-import { useAppUser } from '../../hooks/useAppUser';
-import { ROUTES } from '../index';
+import { useAppUser } from '../hooks/useAppUser';
+import { ROUTES } from './index';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -150,10 +150,14 @@ export function RequireRole({ children, allowedRoles }: RoleRouteProps) {
  */
 export function RequireNoAuth({ children }: ProtectedRouteProps) {
   const { isLoaded, isSignedIn } = useAuth();
-  const { user, loading } = useAppUser();
+  const { user, loading, error } = useAppUser();
 
   if (!isLoaded || (isSignedIn && loading)) {
     return <AuthLoadingScreen />;
+  }
+
+  if (isSignedIn && error) {
+    return <AuthErrorScreen message={error} />;
   }
 
   if (isSignedIn && user) {

@@ -10,6 +10,7 @@ import dotenv from 'dotenv';
 import { config } from './config/env.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { authRouter } from './modules/auth/routes.js';
+import { handleClerkWebhook } from './modules/auth/webhookHandler.js';
 
 dotenv.config();
 
@@ -25,9 +26,14 @@ app.use(
   })
 );
 
+// ─── Clerk Webhook (raw body — must run before express.json()) ───────────────
+app.post(
+  '/api/v1/auth/webhook',
+  express.raw({ type: 'application/json' }),
+  handleClerkWebhook
+);
+
 // ─── Body Parsers ─────────────────────────────────────────────────────────────
-// Note: /auth/webhook uses express.raw() at the route level to preserve
-// the raw body needed for svix signature verification.
 app.use(express.json());
 
 // ─── Request Logging (development) ────────────────────────────────────────────
