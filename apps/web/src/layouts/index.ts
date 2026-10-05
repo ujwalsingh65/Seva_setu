@@ -1,2 +1,1 @@
-// Placeholder for layouts
-export {};
+export { AppShell } from './AppShell';

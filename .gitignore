@@ -43,6 +43,9 @@ wheels/
 *.egg
 .pytest_cache/
 
+# TypeScript incremental build info
+*.tsbuildinfo
+
 # Testing & Coverage
 coverage/
 *.lcov

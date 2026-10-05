@@ -3,34 +3,69 @@
  * Communicates with the Express API (/api/v1)
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 
-export interface RequestOptions extends RequestInit {
-  token?: string;
+export class ApiError extends Error {
+  readonly code: string;
+  readonly status: number;
+
+  constructor(message: string, code: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.status = status;
+  }
 }
 
-export async function apiClient<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const { token, headers = {}, ...customConfig } = options;
+export interface ApiEnvelope<T> {
+  success: true;
+  data: T;
+}
+
+export interface RequestOptions extends Omit<RequestInit, 'body'> {
+  token?: string;
+  body?: unknown;
+}
+
+export async function apiClient<T>(endpoint: string, options: RequestOptions = {}): Promise<ApiEnvelope<T>> {
+  const { token, body, headers = {}, ...customConfig } = options;
 
   const requestHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(headers as Record<string, string>),
   };
 
-  if (token) {
-    requestHeaders['Authorization'] = `Bearer ${token}`;
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...customConfig,
+      headers: requestHeaders,
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+  } catch {
+    throw new ApiError(
+      'Unable to reach the server. Check your connection and try again.',
+      'NETWORK_ERROR',
+      0
+    );
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...customConfig,
-    headers: requestHeaders,
-  });
-
-  const data = await response.json();
+  let payload: unknown = null;
+  try {
+    payload = await response.json();
+  } catch {
+    // Empty or non-JSON body (e.g. 204)
+  }
 
   if (!response.ok) {
-    throw new Error(data.error?.message || 'API request failed');
+    const errBody = payload as { error?: { code?: string; message?: string } } | null;
+    throw new ApiError(
+      errBody?.error?.message || `Request failed with status ${response.status}`,
+      errBody?.error?.code || 'UNKNOWN_ERROR',
+      response.status
+    );
   }
 
-  return data as T;
+  return payload as ApiEnvelope<T>;
 }

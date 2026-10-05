@@ -269,6 +269,33 @@ router.delete('/volunteers/me/availability/:availabilityId', requireAuth, requir
   }
 });
 
+// Membership discovery for NGO users. Registered before the /ngos/:ngoId/* routes.
+router.get('/ngos/me', requireAuth, requireRole(USER_ROLES.NGO_ADMIN, USER_ROLES.NGO_COORDINATOR), async (req, res, next) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('ngo_members')
+      .select('ngo_id, role, status, created_at, ngo:ngos!inner(id, name, status)')
+      .eq('user_id', req.auth!.appUserId)
+      .order('created_at', { ascending: true });
+    if (error) throw databaseError(error);
+    const rows = (data ?? []) as Array<{
+      ngo_id: string;
+      role: string;
+      status: string;
+      ngo: { id: string; name: string; status: string };
+    }>;
+    const memberships = rows.map((row) => ({
+      ngo_id: row.ngo_id,
+      role: row.role,
+      member_status: row.status,
+      ngo: row.ngo,
+    }));
+    res.json({ success: true, data: memberships });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/ngos/:ngoId/public', async (req, res, next) => {
   try {
     const { data, error } = await supabaseAdmin

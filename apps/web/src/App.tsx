@@ -8,17 +8,35 @@
  *  - RequireNoAuth: redirects authenticated users away from login/signup
  *
  * Roles are NEVER read from Clerk session data — always from the backend.
+ * Frontend role checks are UX/navigation only; the API remains the
+ * authorization boundary.
  */
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Outlet, Route, Routes } from 'react-router-dom';
 import { ClerkProvider } from '@clerk/react';
+import { Building2, CalendarDays, Compass, LayoutDashboard, UserRound } from 'lucide-react';
+import type { NavItem } from './components/ui';
 import { ROUTES } from './routes';
 import { LoginPage, SignupPage } from './pages/auth';
-import { VolunteerDashboard } from './pages/volunteer/DashboardPage';
-import { NGODashboard } from './pages/ngo/DashboardPage';
-import { AdminDashboard } from './pages/admin/DashboardPage';
-import { RequireAuth, RequireRole, RequireNoAuth, UnauthorizedPage } from './routes/ProtectedRoutes';
+import { DesignSystemPage } from './pages/DesignSystemPage';
+import { RequireAuth, RequireNoAuth, RequireRole, UnauthorizedPage } from './routes/ProtectedRoutes';
+import { AppShell } from './layouts/AppShell';
 import { USER_ROLES } from '@sevasetu/constants';
+import {
+  VolunteerDashboard,
+  VolunteerDiscover,
+  VolunteerEventDetails,
+  VolunteerMyEvents,
+  VolunteerProfile,
+} from './pages/volunteer';
+import {
+  NGODashboard,
+  NgoEventCreatePage,
+  NgoEventDetailsPage,
+  NgoEventsPage,
+  NgoProfilePage,
+} from './pages/ngo';
+import { AdminDashboard } from './pages/admin/DashboardPage';
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -26,6 +44,29 @@ if (!CLERK_PUBLISHABLE_KEY || CLERK_PUBLISHABLE_KEY === 'pk_test_placeholder') {
   console.warn(
     '[SevaSetu] VITE_CLERK_PUBLISHABLE_KEY is not configured. ' +
     'Authentication will not work. Set this in apps/web/.env.local'
+  );
+}
+
+// ─── Role-scoped navigation ───────────────────────────────────────────────────
+
+const VOLUNTEER_NAV: NavItem[] = [
+  { label: 'Dashboard', to: ROUTES.VOLUNTEER.DASHBOARD, icon: LayoutDashboard },
+  { label: 'Discover', to: ROUTES.VOLUNTEER.DISCOVER, icon: Compass },
+  { label: 'My events', to: ROUTES.VOLUNTEER.EVENTS, icon: CalendarDays },
+  { label: 'Profile', to: ROUTES.VOLUNTEER.PROFILE, icon: UserRound },
+];
+
+const NGO_NAV: NavItem[] = [
+  { label: 'Dashboard', to: ROUTES.NGO.DASHBOARD, icon: LayoutDashboard },
+  { label: 'Events', to: ROUTES.NGO.EVENTS, icon: CalendarDays },
+  { label: 'Organization', to: ROUTES.NGO.PROFILE, icon: Building2 },
+];
+
+function RoleShell({ navItems }: { navItems: NavItem[] }) {
+  return (
+    <AppShell navItems={navItems}>
+      <Outlet />
+    </AppShell>
   );
 }
 
@@ -100,6 +141,7 @@ export const App: React.FC = () => {
           {/* ── Public ── */}
           <Route path={ROUTES.PUBLIC.HOME} element={<HomePage />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
+          <Route path="/design-system" element={<DesignSystemPage />} />
 
           {/* ── Auth (redirect if already signed in) ── */}
           <Route
@@ -137,23 +179,33 @@ export const App: React.FC = () => {
 
           {/* ── Volunteer (role: volunteer) ── */}
           <Route
-            path={ROUTES.VOLUNTEER.DASHBOARD}
             element={
               <RequireRole allowedRoles={[USER_ROLES.VOLUNTEER]}>
-                <VolunteerDashboard />
+                <RoleShell navItems={VOLUNTEER_NAV} />
               </RequireRole>
             }
-          />
+          >
+            <Route path={ROUTES.VOLUNTEER.DASHBOARD} element={<VolunteerDashboard />} />
+            <Route path={ROUTES.VOLUNTEER.DISCOVER} element={<VolunteerDiscover />} />
+            <Route path={ROUTES.VOLUNTEER.EVENTS} element={<VolunteerMyEvents />} />
+            <Route path={ROUTES.VOLUNTEER.EVENT_DETAILS(':eventId')} element={<VolunteerEventDetails />} />
+            <Route path={ROUTES.VOLUNTEER.PROFILE} element={<VolunteerProfile />} />
+          </Route>
 
           {/* ── NGO (roles: ngo_admin, ngo_coordinator) ── */}
           <Route
-            path={ROUTES.NGO.DASHBOARD}
             element={
               <RequireRole allowedRoles={[USER_ROLES.NGO_ADMIN, USER_ROLES.NGO_COORDINATOR]}>
-                <NGODashboard />
+                <RoleShell navItems={NGO_NAV} />
               </RequireRole>
             }
-          />
+          >
+            <Route path={ROUTES.NGO.DASHBOARD} element={<NGODashboard />} />
+            <Route path={ROUTES.NGO.PROFILE} element={<NgoProfilePage />} />
+            <Route path={ROUTES.NGO.CREATE_EVENT} element={<NgoEventCreatePage />} />
+            <Route path={ROUTES.NGO.EVENTS} element={<NgoEventsPage />} />
+            <Route path={ROUTES.NGO.EVENT_DETAILS(':eventId')} element={<NgoEventDetailsPage />} />
+          </Route>
 
           {/* ── Admin (role: platform_admin) ── */}
           <Route

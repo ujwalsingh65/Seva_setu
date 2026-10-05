@@ -27,6 +27,7 @@ export const ROUTES = {
   },
   NGO: {
     DASHBOARD: '/ngo/dashboard',
+    PROFILE: '/ngo/profile',
     EVENTS: '/ngo/events',
     CREATE_EVENT: '/ngo/events/create',
     EVENT_DETAILS: (id: string) => `/ngo/events/${id}`,

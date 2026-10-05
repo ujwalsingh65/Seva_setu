@@ -14,6 +14,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@clerk/react';
 import type { User } from '@sevasetu/shared-types';
+import { API_BASE_URL } from '../services/api/client';
 
 interface AppUserState {
   user: Pick<User, 'id' | 'email' | 'role' | 'status'> | null;
@@ -21,8 +22,6 @@ interface AppUserState {
   error: string | null;
   refetch: () => void;
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 
 export function useAppUser(): AppUserState {
   const { isLoaded, isSignedIn, getToken } = useAuth();
