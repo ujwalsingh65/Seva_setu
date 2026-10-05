@@ -18,6 +18,35 @@ import {
   EMERGENCY_STATUSES,
 } from '@sevasetu/constants';
 
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type PostGISValue = unknown;
+type InsertWithDefaults<Row, Defaults extends keyof Row> = Omit<Row, Defaults> & Partial<Pick<Row, Defaults>>;
+type DatabaseRelationship<
+  Name extends string,
+  Columns extends string[],
+  ReferencedRelation extends string,
+  ReferencedColumns extends string[],
+  OneToOne extends boolean = false,
+> = {
+  foreignKeyName: Name;
+  columns: Columns;
+  isOneToOne?: OneToOne;
+  referencedRelation: ReferencedRelation;
+  referencedColumns: ReferencedColumns;
+};
+type SupabaseTable<Row, Insert, Update = Partial<Insert>, Relationships extends object[] = []> = {
+  Row: { [Key in keyof Row]: Row[Key] };
+  Insert: { [Key in keyof Insert]: Insert[Key] };
+  Update: { [Key in keyof Update]: Update[Key] };
+  Relationships: Relationships;
+};
+type CoreTable<Row, Defaults extends keyof Row, Relationships extends object[] = []> = SupabaseTable<
+  Row,
+  InsertWithDefaults<Row, Defaults>,
+  Partial<Row>,
+  Relationships
+>;
+
 // --- User & Role Model ---
 export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES];
 export type UserStatus = (typeof USER_STATUSES)[keyof typeof USER_STATUSES];
@@ -36,15 +65,15 @@ export interface User {
 export interface VolunteerProfile {
   user_id: string;
   name: string;
-  photo_url?: string | null;
-  bio?: string | null;
-  home_geo?: { lat: number; lng: number } | null;
-  max_distance_km: number;
-  causes: string[];
-  interests: string[];
+  photo_url: string | null;
+  bio: string | null;
+  home_geo: unknown;
+  max_distance_km: number | null;
+  causes: string[] | null;
+  emergency_available: boolean;
   profile_visibility: boolean;
   history_visibility: boolean;
-  notification_preferences: Record<string, boolean>;
+  notification_preferences: Json | null;
   created_at: string;
   updated_at: string;
 }
@@ -60,29 +89,31 @@ export interface VolunteerSkill {
   volunteer_id: string;
   skill_id: string;
   level: string;
+  created_at: string;
 }
 
 export interface Certification {
   id: string;
   volunteer_id: string;
   name: string;
-  issuer: string;
-  expiry?: string | null;
-  document_url?: string | null;
-  verified_by_ngo_id?: string | null;
-  verification_status: 'unverified' | 'verified' | 'rejected';
+  issuer: string | null;
+  expiry: string | null;
+  document_url: string | null;
+  verified_by_ngo_id: string | null;
+  verification_status: 'self_declared' | 'ngo_verified' | 'expired' | 'rejected';
   created_at: string;
+  updated_at: string;
 }
 
 export interface Availability {
   id: string;
   volunteer_id: string;
-  weekday: number; // 0 = Sunday, 6 = Saturday
-  start_time: string; // HH:mm
-  end_time: string; // HH:mm
-  recurring: boolean;
-  start_date?: string | null;
-  end_date?: string | null;
+  weekday: number | null;
+  start_time: string | null;
+  end_time: string | null;
+  available_date: string | null;
+  is_available: boolean;
+  recurrence: string | null;
   created_at: string;
 }
 
@@ -90,33 +121,39 @@ export interface Availability {
 export interface NGO {
   id: string;
   name: string;
-  description: string;
-  causes: string[];
-  region: string;
-  geo?: { lat: number; lng: number } | null;
-  contact: Record<string, any>;
-  logo_url?: string | null;
+  description: string | null;
+  causes: string[] | null;
+  region: string | null;
+  geo: unknown;
+  contact: Json | null;
+  logo_url: string | null;
+  status: NGOStatus;
   created_at: string;
   updated_at: string;
 }
 
+export type NGOStatus = 'pending' | 'verified' | 'rejected' | 'suspended';
+
 export interface NGOMember {
-  id: string;
   ngo_id: string;
   user_id: string;
-  role: 'ngo_admin' | 'ngo_coordinator';
+  role: 'admin' | 'coordinator';
+  status: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface NGOAffiliation {
   id: string;
   ngo_id: string;
   volunteer_id: string;
-  status: 'invited' | 'active' | 'ended' | 'rejected';
-  invited_at?: string | null;
-  accepted_at?: string | null;
-  ended_at?: string | null;
+  status: NGOAffiliationStatus;
+  invited_at: string;
+  accepted_at: string | null;
+  ended_at: string | null;
 }
+
+export type NGOAffiliationStatus = 'invited' | 'active' | 'rejected' | 'ended';
 
 // --- Event Entities ---
 export type EventStatus = (typeof EVENT_STATUSES)[keyof typeof EVENT_STATUSES];
@@ -129,9 +166,9 @@ export interface Event {
   description: string;
   cause: string;
   venue: string;
-  geo?: { lat: number; lng: number } | null;
-  start_time: string;
-  end_time: string;
+  geo: unknown;
+  start_at: string;
+  end_at: string;
   visibility: EventVisibility;
   capacity: number;
   status: EventStatus;
@@ -147,8 +184,8 @@ export interface EventRequirement {
   role: string;
   headcount: number;
   required_skill_ids: string[];
-  required_certifications: string[];
-  minimum_experience: number;
+  required_cert_names: string[];
+  min_experience: number;
   created_at: string;
 }
 
@@ -156,9 +193,10 @@ export interface Shift {
   id: string;
   event_id: string;
   requirement_id: string;
-  start_time: string;
-  end_time: string;
+  start_at: string;
+  end_at: string;
   headcount: number;
+  created_at: string;
 }
 
 // --- Applications & Matching ---
@@ -169,7 +207,98 @@ export interface Application {
   event_id: string;
   volunteer_id: string;
   status: ApplicationStatus;
-  registered_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type EventRegistrationMode = 'open' | 'approval_required';
+
+export interface Database {
+  public: {
+    Tables: {
+      users: CoreTable<User, 'id' | 'role' | 'status' | 'created_at' | 'updated_at'>;
+      volunteer_profiles: CoreTable<
+        VolunteerProfile,
+        'created_at' | 'updated_at' | 'emergency_available',
+        [DatabaseRelationship<'volunteer_profiles_user_id_fkey', ['user_id'], 'users', ['id'], true>]
+      >;
+      skills: CoreTable<Skill, 'id' | 'active'>;
+      volunteer_skills: CoreTable<
+        VolunteerSkill,
+        'created_at',
+        [
+          DatabaseRelationship<'volunteer_skills_volunteer_id_fkey', ['volunteer_id'], 'volunteer_profiles', ['user_id']>,
+          DatabaseRelationship<'volunteer_skills_skill_id_fkey', ['skill_id'], 'skills', ['id']>,
+        ]
+      >;
+      certifications: CoreTable<
+        Certification,
+        'id' | 'created_at' | 'updated_at',
+        [
+          DatabaseRelationship<'certifications_volunteer_id_fkey', ['volunteer_id'], 'volunteer_profiles', ['user_id']>,
+          DatabaseRelationship<'certifications_verified_by_ngo_id_fkey', ['verified_by_ngo_id'], 'ngos', ['id']>,
+        ]
+      >;
+      availability: CoreTable<
+        Availability,
+        'id' | 'created_at',
+        [DatabaseRelationship<'availability_volunteer_id_fkey', ['volunteer_id'], 'volunteer_profiles', ['user_id']>]
+      >;
+      ngos: CoreTable<NGO, 'id' | 'created_at' | 'updated_at'>;
+      ngo_members: CoreTable<
+        NGOMember,
+        'created_at' | 'updated_at',
+        [
+          DatabaseRelationship<'ngo_members_ngo_id_fkey', ['ngo_id'], 'ngos', ['id']>,
+          DatabaseRelationship<'ngo_members_user_id_fkey', ['user_id'], 'users', ['id']>,
+        ]
+      >;
+      ngo_affiliations: CoreTable<
+        NGOAffiliation,
+        'id' | 'invited_at' | 'accepted_at' | 'ended_at',
+        [
+          DatabaseRelationship<'ngo_affiliations_ngo_id_fkey', ['ngo_id'], 'ngos', ['id']>,
+          DatabaseRelationship<'ngo_affiliations_volunteer_id_fkey', ['volunteer_id'], 'volunteer_profiles', ['user_id']>,
+        ]
+      >;
+      events: CoreTable<
+        Event,
+        'id' | 'created_at' | 'updated_at',
+        [
+          DatabaseRelationship<'events_ngo_id_fkey', ['ngo_id'], 'ngos', ['id']>,
+          DatabaseRelationship<'events_created_by_fkey', ['created_by'], 'users', ['id']>,
+        ]
+      >;
+      event_requirements: CoreTable<
+        EventRequirement,
+        'id' | 'created_at',
+        [DatabaseRelationship<'event_requirements_event_id_fkey', ['event_id'], 'events', ['id']>]
+      >;
+      shifts: CoreTable<
+        Shift,
+        'id' | 'created_at',
+        [
+          DatabaseRelationship<'shifts_event_id_fkey', ['event_id'], 'events', ['id']>,
+          DatabaseRelationship<'shifts_requirement_id_fkey', ['requirement_id'], 'event_requirements', ['id']>,
+          DatabaseRelationship<'shifts_requirement_belongs_to_event_fkey', ['event_id', 'requirement_id'], 'event_requirements', ['event_id', 'id']>,
+        ]
+      >;
+      applications: CoreTable<
+        Application,
+        'id' | 'created_at' | 'updated_at',
+        [
+          DatabaseRelationship<'applications_event_id_fkey', ['event_id'], 'events', ['id']>,
+          DatabaseRelationship<'applications_volunteer_id_fkey', ['volunteer_id'], 'volunteer_profiles', ['user_id']>,
+        ]
+      >;
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: {
+      event_registration_mode: EventRegistrationMode;
+    };
+    CompositeTypes: Record<string, never>;
+  };
 }
 
 export interface MatchRun {

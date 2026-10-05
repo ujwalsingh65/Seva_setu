@@ -9,23 +9,10 @@
  * Security note: roles come from our DB, not Clerk metadata.
  */
 import type { Request, Response, NextFunction } from 'express';
-import { createClerkClient } from '@clerk/clerk-sdk-node';
+import { verifyToken } from '@clerk/backend';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { config } from '../config/env.js';
 import { AppError } from './errorHandler.js';
-
-// Lazy-initialise so we get a clear error if the key is missing at startup.
-let clerkClient: ReturnType<typeof createClerkClient> | null = null;
-
-function getClerkClient() {
-  if (!clerkClient) {
-    if (!config.clerk.secretKey) {
-      throw new Error('CLERK_SECRET_KEY is not configured');
-    }
-    clerkClient = createClerkClient({ secretKey: config.clerk.secretKey });
-  }
-  return clerkClient;
-}
 
 // Augment Express Request with our auth context
 declare global {
@@ -55,10 +42,16 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const token = authHeader.slice(7);
 
     // Verify token with Clerk
-    const clerk = getClerkClient();
+    if (!config.clerk.secretKey) {
+      throw new Error('CLERK_SECRET_KEY is not configured');
+    }
+
     let clerkUserId: string;
     try {
-      const payload = await clerk.verifyToken(token);
+      const payload = await verifyToken(token, {
+        secretKey: config.clerk.secretKey,
+        authorizedParties: [config.frontendUrl],
+      });
       if (!payload.sub) {
         throw new AppError('Invalid session token', 401, 'TOKEN_INVALID');
       }

@@ -9,10 +9,10 @@
     "start": "node dist/server.js",
     "type-check": "tsc --noEmit",
     "lint": "echo API lint check passed",
-    "test": "echo API test check passed"
+    "test": "node --import tsx --test src/modules/core/validation.test.ts"
   },
   "dependencies": {
-    "@clerk/clerk-sdk-node": "^4.13.23",
+    "@clerk/backend": "^3.22.0",
     "@sevasetu/constants": "*",
     "@sevasetu/matching-config": "*",
     "@sevasetu/shared-types": "*",
