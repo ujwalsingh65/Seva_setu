@@ -15,6 +15,7 @@ import {
   getMyVolunteerProfile,
   getNgoPublicProfile,
   getPublicEvent,
+  getPublicEventRequirements,
   listMyApplications,
   type ApplicationRow,
   type NgoPublicProfile,
@@ -66,6 +67,10 @@ export function VolunteerEventDetailsPage() {
   );
   const applicationsQuery = useApiQuery(listMyApplications);
   const profileQuery = useApiQuery(getMyVolunteerProfile);
+  const requirementsQuery = useApiQuery(
+    (token) => (eventId ? getPublicEventRequirements(token, eventId) : Promise.resolve([])),
+    [eventId],
+  );
 
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -201,6 +206,34 @@ export function VolunteerEventDetailsPage() {
               </dl>
             </CardContent>
           </Card>
+
+          {(requirementsQuery.data ?? []).length > 0 && (
+            <Card>
+              <CardHeader icon={Users}>
+                <CardTitle as="h2">What volunteers will do</CardTitle>
+                <CardDescription>Roles and what each role requires.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-3">
+                  {(requirementsQuery.data ?? []).map((requirement, index) => (
+                    <li key={`${requirement.role}-${index}`}>
+                      <p className="text-small font-medium text-brand-text">
+                        {requirement.role} · {requirement.headcount} needed
+                      </p>
+                      <p className="text-caption text-brand-text-muted">
+                        {requirement.required_skills.length > 0 ? `Skills: ${requirement.required_skills.join(', ')}` : 'No specific skills required'}
+                        {' · '}
+                        {requirement.required_certifications.length > 0
+                          ? `Certifications: ${requirement.required_certifications.join(', ')}`
+                          : 'No certification required'}
+                        {requirement.min_experience > 0 ? ` · min experience ${requirement.min_experience}` : ''}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="space-y-4">

@@ -20,6 +20,7 @@ import { requireAuth, requireRole } from '../../middleware/auth.js';
 import { supabaseAdmin } from '../../lib/supabase.js';
 import type { Database } from '@sevasetu/shared-types';
 import { countAcceptedByEvent, projectVolunteerInfo, selectAccepted, VOLUNTEER_PUBLIC_COLUMNS } from './volunteerInfo.js';
+import { filterPublicEvents, projectRequirements, type OpportunityFilter } from './opportunities.js';
 
 const router = Router();
 const eventColumns =
@@ -358,7 +359,7 @@ router.patch('/ngos/:ngoId/profile', requireAuth, async (req, res, next) => {
   }
 });
 
-router.get('/events', async (_req, res, next) => {
+router.get('/events', async (req, res, next) => {
   try {
     const { data, error } = await supabaseAdmin
       .from('events')
@@ -379,10 +380,58 @@ router.get('/events', async (_req, res, next) => {
       .in('event_id', events.map((event) => event.id));
     if (acceptedError) throw databaseError(acceptedError);
     const acceptedCounts = countAcceptedByEvent(accepted ?? []);
+
+    // Deterministic server-side discovery filters (Step 13).
+    const query = req.query as Record<string, string | undefined>;
+    const filters = {
+      search: query.search || undefined,
+      cause: query.cause || undefined,
+      from: query.from || undefined,
+      to: query.to || undefined,
+      type: query.type === 'emergency' || query.type === 'standard' ? query.type : undefined,
+      urgency: query.urgency || undefined,
+      registrationMode: query.registration_mode === 'open' || query.registration_mode === 'approval_required' ? query.registration_mode : undefined,
+      hasCapacity: query.has_capacity === 'true',
+    } as OpportunityFilter;
+    const filtered = filterPublicEvents(events, acceptedCounts, filters);
     res.json({
       success: true,
-      data: events.map((event) => ({ ...event, accepted_count: acceptedCounts[event.id] ?? 0 })),
+      data: filtered.map((event) => ({ ...event, accepted_count: acceptedCounts[event.id] ?? 0 })),
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Public requirement projection for a published public event (Step 13).
+router.get('/events/:eventId/requirements', async (req, res, next) => {
+  try {
+    const eventId = routeParam(req, 'eventId');
+    const { data: event, error: eventError } = await supabaseAdmin
+      .from('events')
+      .select('id')
+      .eq('id', eventId)
+      .eq('visibility', EVENT_VISIBILITY.PUBLIC)
+      .eq('status', EVENT_STATUSES.PUBLISHED)
+      .maybeSingle();
+    if (eventError) throw databaseError(eventError);
+    if (!event) throw new AppError('Published public event not found.', 404, 'EVENT_NOT_FOUND');
+
+    const { data: requirements, error } = await supabaseAdmin
+      .from('event_requirements')
+      .select('role, headcount, required_skill_ids, required_cert_names, min_experience')
+      .eq('event_id', eventId);
+    if (error) throw databaseError(error);
+
+    const { data: skills, error: skillsError } = await supabaseAdmin
+      .from('skills')
+      .select('id, name')
+      .eq('active', true);
+    if (skillsError) throw databaseError(skillsError);
+    const skillNames: Record<string, string> = {};
+    for (const skill of skills ?? []) skillNames[skill.id] = skill.name;
+
+    res.json({ success: true, data: projectRequirements(requirements ?? [], skillNames) });
   } catch (error) {
     next(error);
   }

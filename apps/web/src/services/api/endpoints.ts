@@ -106,12 +106,45 @@ export async function deleteMyAvailability(token: string, availabilityId: string
 
 // ─── Public events ────────────────────────────────────────────────────────────
 
-export async function listPublicEvents(token: string): Promise<PublicEventRow[]> {
-  return (await apiClient<PublicEventRow[]>('/events', { token })).data;
+export interface OpportunityQuery {
+  search?: string;
+  cause?: string;
+  from?: string;
+  to?: string;
+  type?: 'standard' | 'emergency';
+  urgency?: string;
+  registration_mode?: 'open' | 'approval_required';
+  has_capacity?: boolean;
+}
+
+export async function listPublicEvents(token: string, query: OpportunityQuery = {}): Promise<PublicEventRow[]> {
+  const params = new URLSearchParams();
+  if (query.search) params.set('search', query.search);
+  if (query.cause) params.set('cause', query.cause);
+  if (query.from) params.set('from', query.from);
+  if (query.to) params.set('to', query.to);
+  if (query.type) params.set('type', query.type);
+  if (query.urgency) params.set('urgency', query.urgency);
+  if (query.registration_mode) params.set('registration_mode', query.registration_mode);
+  if (query.has_capacity) params.set('has_capacity', 'true');
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return (await apiClient<PublicEventRow[]>(`/events${suffix}`, { token })).data;
 }
 
 export async function getPublicEvent(token: string, eventId: string): Promise<PublicEventRow> {
   return (await apiClient<PublicEventRow>(`/events/${eventId}`, { token })).data;
+}
+
+export interface PublicRequirement {
+  role: string;
+  headcount: number;
+  required_skills: string[];
+  required_certifications: string[];
+  min_experience: number;
+}
+
+export async function getPublicEventRequirements(token: string, eventId: string): Promise<PublicRequirement[]> {
+  return (await apiClient<PublicRequirement[]>(`/events/${eventId}/requirements`, { token })).data;
 }
 
 // ─── Volunteer applications ───────────────────────────────────────────────────

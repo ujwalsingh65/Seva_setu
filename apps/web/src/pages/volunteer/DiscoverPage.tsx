@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { CalendarDays, MapPin, Search, Users } from 'lucide-react';
 import { useApiQuery } from '../../hooks/useApi';
 import { ROUTES } from '../../routes';
-import { listPublicEvents, type PublicEventRow } from '../../services/api/endpoints';
+import { listPublicEvents } from '../../services/api/endpoints';
 import { formatDateTime, isUpcoming } from '../../utils/format';
 import {
   Button,
@@ -29,49 +29,38 @@ const DATE_WINDOW_OPTIONS = [
 
 type DateWindow = 'all' | 'week' | 'month';
 
-function matchesFilters(
-  event: PublicEventRow,
-  query: string,
-  cause: string,
-  dateWindow: DateWindow,
-): boolean {
-  if (query) {
-    const haystack = `${event.title} ${event.description} ${event.cause} ${event.venue}`.toLowerCase();
-    if (!haystack.includes(query)) return false;
-  }
-  if (cause && event.cause !== cause) return false;
-  if (dateWindow !== 'all' && !isUpcoming(event.start_at)) return false;
-  if (dateWindow === 'week') {
-    const inWeek = new Date(event.start_at).getTime() <= Date.now() + 7 * 24 * 60 * 60 * 1000;
-    if (!inWeek) return false;
-  }
-  if (dateWindow === 'month') {
-    const inMonth = new Date(event.start_at).getTime() <= Date.now() + 30 * 24 * 60 * 60 * 1000;
-    if (!inMonth) return false;
-  }
-  return true;
-}
-
 export function DiscoverPage() {
-  const { data: events, loading, error, refetch } = useApiQuery(listPublicEvents);
-
   const [query, setQuery] = useState('');
   const [cause, setCause] = useState('');
   const [dateWindow, setDateWindow] = useState<DateWindow>('all');
+
+  const eventsQuery = useApiQuery(
+    (token) =>
+      listPublicEvents(token, {
+        search: query || undefined,
+        cause: cause || undefined,
+        ...(dateWindow === 'week'
+          ? { from: new Date().toISOString(), to: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() }
+          : dateWindow === 'month'
+            ? { from: new Date().toISOString(), to: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() }
+            : { from: new Date().toISOString() }),
+      }),
+    [query, cause, dateWindow],
+  );
+  const { data: events, loading, error, refetch } = eventsQuery;
 
   const causes = useMemo(
     () => Array.from(new Set((events ?? []).map((event) => event.cause))).sort(),
     [events],
   );
 
-  const filtered = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-    return (events ?? [])
-      .filter((event) => matchesFilters(event, normalizedQuery, cause, dateWindow))
-      .sort(
+  const filtered = useMemo(
+    () =>
+      [...(events ?? [])].sort(
         (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
-      );
-  }, [events, query, cause, dateWindow]);
+      ),
+    [events],
+  );
 
   const hasActiveFilters = query.trim() !== '' || cause !== '' || dateWindow !== 'all';
 
@@ -84,8 +73,8 @@ export function DiscoverPage() {
   return (
     <div>
       <PageHeader
-        title="Discover events"
-        description="Browse public volunteering opportunities and register for the causes you care about."
+        title="Find where your time can help"
+        description="Discover verified community opportunities that match what you can contribute — no NGO affiliation required."
       />
 
       <Card className="mb-6">
