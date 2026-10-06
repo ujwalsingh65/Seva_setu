@@ -9,22 +9,22 @@
  * output is always validated. No autonomous actions are taken.
  */
 import { Router } from 'express';
-import { APPLICATION_STATUSES, EVENT_STATUSES, USER_STATUSES } from '@sevasetu/constants';
+import { APPLICATION_STATUSES, USER_STATUSES } from '@sevasetu/constants';
 import { AppError } from '../../middleware/errorHandler.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { supabaseAdmin } from '../../lib/supabase.js';
 import { authorizeNgoMember, databaseError, routeParam } from '../core/routes.js';
 import {
-  analyzeEventContext,
-  validateIntelligenceResult,
+  buildContextFingerprint,
   type EventIntelligenceContext,
 } from './intelligenceService.js';
+import { runIntelligenceAnalysis } from './intelligenceProvider.js';
+import { buildIntelligenceTools } from './intelligenceTools.js';
 import {
   candidateCoversShift,
   candidateHasRequiredCertifications,
   candidateHasRequiredSkills,
 } from '../scheduling/schedulingService.js';
-import { config } from '../../config/env.js';
 
 const router = Router();
 
@@ -198,42 +198,6 @@ async function buildContext(ngoId: string, eventId: string): Promise<EventIntell
   };
 }
 
-async function invokeProvider(context: EventIntelligenceContext) {
-  // Deterministic rules provider always works and always explains the same
-  // facts the LLM would receive.
-  if (!config.agent.llmApiKey || !config.agent.llmBaseUrl || !config.agent.llmModel) {
-    return { provider: 'rules' as const, result: analyzeEventContext(context) };
-  }
-
-  try {
-    const response = await fetch(`${config.agent.llmBaseUrl.replace(/\/$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.agent.llmApiKey}` },
-      body: JSON.stringify({
-        model: config.agent.llmModel,
-        response_format: { type: 'json_object' },
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are SevaSetu\'s Event Operations Intelligence Agent. Use only the supplied context. Never invent facts. Never claim an action was executed. Distinguish explicit from inferred requirements. Recommend, never assign. Output strict JSON matching the supplied schema.',
-          },
-          { role: 'user', content: JSON.stringify(context) },
-        ],
-      }),
-    });
-    if (!response.ok) throw new Error(`LLM HTTP ${response.status}`);
-    const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const content = payload.choices?.[0]?.message?.content;
-    if (!content) throw new Error('Empty LLM response');
-    const parsed = validateIntelligenceResult(JSON.parse(content));
-    if (!parsed) throw new Error('LLM output failed schema validation');
-    return { provider: 'llm' as const, result: parsed };
-  } catch {
-    return { provider: 'rules' as const, result: analyzeEventContext(context), fallback: true };
-  }
-}
-
 router.post('/ngos/:ngoId/events/:eventId/intelligence', requireAuth, async (req, res, next) => {
   try {
     const ngoId = routeParam(req, 'ngoId');
@@ -241,8 +205,21 @@ router.post('/ngos/:ngoId/events/:eventId/intelligence', requireAuth, async (req
     await authorizeNgoMember(req.auth!.appUserId, req.auth!.appRole, ngoId);
 
     const context = await buildContext(ngoId, eventId);
-    const analysis = await invokeProvider(context);
-    res.json({ success: true, data: { provider: analysis.provider, fallback: 'fallback' in analysis && analysis.fallback === true, ...analysis.result, context_summary: { confirmed: context.confirmed_assignments, required: context.required_headcount, unfilled: context.unfilled_positions, conflicts: context.scheduling_conflicts } } });
+    const tools = buildIntelligenceTools(ngoId, eventId);
+    const analysis = await runIntelligenceAnalysis({ context, tools });
+    res.json({ success: true, data: { provider: analysis.provider, fallback: analysis.fallback, tools_used: analysis.toolsUsed, ...analysis.result, context_summary: { confirmed: context.confirmed_assignments, required: context.required_headcount, unfilled: context.unfilled_positions, conflicts: context.scheduling_conflicts }, fingerprint: buildContextFingerprint(context) } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/ngos/:ngoId/events/:eventId/intelligence/fingerprint', requireAuth, async (req, res, next) => {
+  try {
+    const ngoId = routeParam(req, 'ngoId');
+    const eventId = routeParam(req, 'eventId');
+    await authorizeNgoMember(req.auth!.appUserId, req.auth!.appRole, ngoId);
+    const context = await buildContext(ngoId, eventId);
+    res.json({ success: true, data: { fingerprint: buildContextFingerprint(context) } });
   } catch (error) {
     next(error);
   }

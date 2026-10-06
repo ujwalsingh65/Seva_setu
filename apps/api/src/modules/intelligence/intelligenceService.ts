@@ -219,3 +219,27 @@ export function validateIntelligenceResult(raw: unknown): EventIntelligence | nu
   const parsed = intelligenceSchema.safeParse(raw);
   return parsed.success ? parsed.data : null;
 }
+
+/**
+ * Stale-data fingerprint: same relevant operational facts ⇒ same string.
+ * Derived from counts + deadlines, not timestamps, so it changes exactly
+ * when the facts the analysis relied on change.
+ */
+export function buildContextFingerprint(context: EventIntelligenceContext): string {
+  const parts = [
+    context.event.status,
+    context.event.start_at,
+    context.event.end_at,
+    context.event.response_deadline ?? '',
+    String(context.required_headcount),
+    String(context.confirmed_assignments),
+    String(context.unfilled_positions),
+    String(context.scheduling_conflicts),
+    String(context.shifts_defined),
+    ...context.requirements.map(
+      (row) => `${row.role}:${row.headcount}:${row.eligible_candidates}:${row.certified_candidates}`,
+    ),
+    context.emergency ? `${context.emergency.required}:${context.emergency.confirmed}:${context.emergency.pending}` : '',
+  ];
+  return parts.join('|');
+}

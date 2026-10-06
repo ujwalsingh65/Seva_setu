@@ -245,15 +245,35 @@ function EventDetailsContent({ ngoId, eventId }: { ngoId: string; eventId: strin
                 onDecided={events.refetch}
               />
 
-              <RosterPanel ngoId={ngoId} eventId={eventId} />
+              <div id="roster-section">
+                <RosterPanel ngoId={ngoId} eventId={eventId} />
+              </div>
 
               <ParticipationPanel ngoId={ngoId} eventId={eventId} />
 
               <SchedulePanel ngoId={ngoId} eventId={eventId} />
 
-              <EventIntelligencePanel ngoId={ngoId} eventId={eventId} />
+              <EventIntelligencePanel
+                ngoId={ngoId}
+                eventId={eventId}
+                onAction={(actionType) => {
+                  // Action handoff: the agent recommends, the NGO acts.
+                  if (actionType === 'edit_event') {
+                    setEditing(true);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  } else if (actionType === 'view_matching') {
+                    document.getElementById('matching-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  } else if (actionType === 'view_roster') {
+                    document.getElementById('roster-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  } else if (actionType === 'emergency_mobilization') {
+                    navigate(ROUTES.NGO.EMERGENCY);
+                  }
+                }}
+              />
 
-              <MatchesPanel ngoId={ngoId} eventId={eventId} />
+              <div id="matching-section">
+                <MatchesPanel ngoId={ngoId} eventId={eventId} />
+              </div>
             </div>
 
             <div className="space-y-6">
