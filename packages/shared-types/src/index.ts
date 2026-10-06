@@ -178,6 +178,10 @@ export interface Event {
   created_by: string;
   created_at: string;
   updated_at: string;
+  event_type: 'standard' | 'emergency';
+  urgency: 'low' | 'medium' | 'high' | 'critical' | null;
+  response_deadline: string | null;
+  max_distance_km: number | null;
 }
 
 export interface EventRequirement {
@@ -265,7 +269,7 @@ export interface Database {
       >;
       events: CoreTable<
         Event,
-        'id' | 'created_at' | 'updated_at',
+        'id' | 'created_at' | 'updated_at' | 'event_type' | 'urgency' | 'response_deadline' | 'max_distance_km',
         [
           DatabaseRelationship<'events_ngo_id_fkey', ['ngo_id'], 'ngos', ['id']>,
           DatabaseRelationship<'events_created_by_fkey', ['created_by'], 'users', ['id']>,
@@ -311,6 +315,27 @@ export interface Database {
           DatabaseRelationship<'roster_assignments_volunteer_id_fkey', ['volunteer_id'], 'volunteer_profiles', ['user_id']>,
           DatabaseRelationship<'roster_assignments_created_by_fkey', ['created_by'], 'users', ['id']>,
         ]
+      >;
+      emergency_candidates: CoreTable<
+        EmergencyCandidate,
+        'id' | 'created_at',
+        [
+          DatabaseRelationship<'emergency_candidates_event_id_fkey', ['event_id'], 'events', ['id']>,
+          DatabaseRelationship<'emergency_candidates_volunteer_id_fkey', ['volunteer_id'], 'volunteer_profiles', ['user_id']>,
+        ]
+      >;
+      emergency_invitations: CoreTable<
+        EmergencyInvitation,
+        'id' | 'status' | 'invited_at' | 'responded_at' | 'replacement_for' | 'created_at' | 'updated_at',
+        [
+          DatabaseRelationship<'emergency_invitations_event_id_fkey', ['event_id'], 'events', ['id']>,
+          DatabaseRelationship<'emergency_invitations_volunteer_id_fkey', ['volunteer_id'], 'volunteer_profiles', ['user_id']>,
+        ]
+      >;
+      notifications: CoreTable<
+        NotificationRecord,
+        'id' | 'payload' | 'created_at' | 'read_at',
+        [DatabaseRelationship<'notifications_user_id_fkey', ['user_id'], 'users', ['id']>]
       >;
     };
     Views: Record<string, never>;
@@ -396,6 +421,42 @@ export interface Task {
   status: 'pending' | 'completed' | 'cancelled';
   completed_at?: string | null;
   verified_by?: string | null;
+}
+
+// --- Emergency mobilization (Step 11) ---
+export interface EmergencyCandidate {
+  id: string;
+  event_id: string;
+  volunteer_id: string;
+  requirement_id: string;
+  bucket: 'primary' | 'backup';
+  rank: number;
+  match_score: number;
+  explanation: string | null;
+  created_at: string;
+}
+
+export interface EmergencyInvitation {
+  id: string;
+  event_id: string;
+  requirement_id: string;
+  volunteer_id: string;
+  status: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled';
+  invited_at: string;
+  expires_at: string;
+  responded_at: string | null;
+  replacement_for: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationRecord {
+  id: string;
+  user_id: string;
+  type: string;
+  payload: Record<string, any>;
+  created_at: string;
+  read_at: string | null;
 }
 
 // --- Roster assignments (Step 10) ---

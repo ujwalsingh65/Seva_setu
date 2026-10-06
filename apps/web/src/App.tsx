@@ -14,7 +14,7 @@
 import React from 'react';
 import { BrowserRouter, Outlet, Route, Routes } from 'react-router-dom';
 import { ClerkProvider } from '@clerk/react';
-import { Building2, CalendarDays, Compass, LayoutDashboard, UserRound } from 'lucide-react';
+import { AlertTriangle, Building2, CalendarDays, Compass, LayoutDashboard, UserRound } from 'lucide-react';
 import type { NavItem } from './components/ui';
 import { ROUTES } from './routes';
 import { LoginPage, SignupPage } from './pages/auth';
@@ -35,6 +35,7 @@ import {
   NgoEventDetailsPage,
   NgoEventsPage,
   NgoProfilePage,
+  NgoEmergencyPage,
 } from './pages/ngo';
 import { AdminDashboard } from './pages/admin/DashboardPage';
 
@@ -59,6 +60,7 @@ const VOLUNTEER_NAV: NavItem[] = [
 const NGO_NAV: NavItem[] = [
   { label: 'Dashboard', to: ROUTES.NGO.DASHBOARD, icon: LayoutDashboard },
   { label: 'Events', to: ROUTES.NGO.EVENTS, icon: CalendarDays },
+  { label: 'Emergency', to: ROUTES.NGO.EMERGENCY, icon: AlertTriangle },
   { label: 'Organization', to: ROUTES.NGO.PROFILE, icon: Building2 },
 ];
 
@@ -205,6 +207,7 @@ export const App: React.FC = () => {
             <Route path={ROUTES.NGO.CREATE_EVENT} element={<NgoEventCreatePage />} />
             <Route path={ROUTES.NGO.EVENTS} element={<NgoEventsPage />} />
             <Route path={ROUTES.NGO.EVENT_DETAILS(':eventId')} element={<NgoEventDetailsPage />} />
+            <Route path={ROUTES.NGO.EMERGENCY} element={<NgoEmergencyPage />} />
           </Route>
 
           {/* ── Admin (role: platform_admin) ── */}

@@ -257,6 +257,85 @@ export async function getNgoEventMatches(
 }
 
 // ---------------------------------------------------------------------------
+// Step 11 — Rapid emergency mobilization
+// ---------------------------------------------------------------------------
+
+export interface NgoEmergencyRow {
+  id: string;
+  title: string;
+  venue: string;
+  start_at: string;
+  end_at: string;
+  urgency: 'low' | 'medium' | 'high' | 'critical' | null;
+  response_deadline: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface EmergencyStaffing {
+  required: number;
+  confirmed: number;
+  pending: number;
+  backups: number;
+  unfilled: number;
+  staffing_status: 'unfilled' | 'partially_filled' | 'filled';
+}
+
+export interface MyEmergencyInvitation {
+  id: string;
+  event_id: string;
+  requirement_id: string;
+  status: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled';
+  invited_at: string;
+  expires_at: string;
+  responded_at: string | null;
+  role: string | null;
+  emergency: { id: string; title: string; venue: string; start_at: string; end_at: string; urgency: string | null; ngo_id: string } | null;
+}
+
+export async function listNgoEmergencies(token: string, ngoId: string): Promise<NgoEmergencyRow[]> {
+  return (await apiClient<NgoEmergencyRow[]>(`/ngos/${ngoId}/emergencies`, { token })).data;
+}
+
+export async function createNgoEmergency(token: string, ngoId: string, body: unknown): Promise<{ id: string; required: number }> {
+  return (await apiClient<{ id: string; required: number }>(`/ngos/${ngoId}/emergencies`, { method: 'POST', token, body })).data;
+}
+
+export async function getNgoEmergency(token: string, ngoId: string, emergencyId: string): Promise<{ emergency: NgoEmergencyRow; staffing: EmergencyStaffing }> {
+  return (await apiClient<{ emergency: NgoEmergencyRow; staffing: EmergencyStaffing }>(`/ngos/${ngoId}/emergencies/${emergencyId}`, { token })).data;
+}
+
+export async function mobilizeEmergency(token: string, ngoId: string, emergencyId: string): Promise<{ event_id: string; primary_invitations: number; backups: number }> {
+  return (
+    await apiClient<{ event_id: string; primary_invitations: number; backups: number }>(
+      `/ngos/${ngoId}/emergencies/${emergencyId}/mobilize`,
+      { method: 'POST', token },
+    )
+  ).data;
+}
+
+export async function cancelEmergency(token: string, ngoId: string, emergencyId: string): Promise<void> {
+  await apiClient<unknown>(`/ngos/${ngoId}/emergencies/${emergencyId}/cancel`, { method: 'POST', token });
+}
+
+export async function listMyEmergencyInvitations(token: string): Promise<MyEmergencyInvitation[]> {
+  return (await apiClient<MyEmergencyInvitation[]>('/volunteers/me/emergency-invitations', { token })).data;
+}
+
+export async function respondToEmergencyInvitation(
+  token: string,
+  invitationId: string,
+  action: 'accept' | 'decline',
+): Promise<unknown> {
+  return (
+    await apiClient<unknown>(`/volunteers/me/emergency-invitations/${invitationId}/${action}`, {
+      method: 'POST',
+      token,
+    })
+  ).data;
+}
+
+// ---------------------------------------------------------------------------
 // Step 10 — Automated shift & roster generator
 // ---------------------------------------------------------------------------
 

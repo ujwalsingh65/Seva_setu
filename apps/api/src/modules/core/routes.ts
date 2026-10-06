@@ -23,7 +23,7 @@ import { countAcceptedByEvent, projectVolunteerInfo, selectAccepted, VOLUNTEER_P
 
 const router = Router();
 const eventColumns =
-  'id, ngo_id, title, description, cause, venue, geo, start_at, end_at, visibility, capacity, status, registration_mode, created_by, created_at, updated_at';
+  'id, ngo_id, title, description, cause, venue, geo, start_at, end_at, visibility, capacity, status, registration_mode, created_by, created_at, updated_at, event_type, urgency, response_deadline, max_distance_km';
 
 const updateEventSchema = z.object({
   title: z.string().min(3).max(150).optional(),
@@ -62,7 +62,7 @@ const updateNgoProfileSchema = z.object({
   message: 'At least one NGO profile field must be provided',
 });
 
-function pointToEwkt(
+export function pointToEwkt(
   point: { lat: number; lng: number } | null | undefined
 ): string | null | undefined {
   if (point === undefined) return undefined;
@@ -85,6 +85,9 @@ export function databaseError(error: { code?: string; constraint?: string }): Ap
   }
   if (error.code === '23514' && error.constraint === 'applications_capacity_check') {
     return new AppError('This event has reached its volunteer capacity.', 409, 'EVENT_CAPACITY_REACHED');
+  }
+  if (error.code === '23514' && error.constraint === 'roster_assignments_capacity_check') {
+    return new AppError('This shift has reached its volunteer capacity.', 409, 'SHIFT_CAPACITY_REACHED');
   }
   if (error.code === '23514') {
     return new AppError('The submitted data violates a required constraint.', 400, 'INVALID_DATA');
