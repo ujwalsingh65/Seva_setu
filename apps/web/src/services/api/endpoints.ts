@@ -290,6 +290,32 @@ export async function getNgoEventMatches(
 }
 
 // ---------------------------------------------------------------------------
+// Step 14 — Karma / verified community impact
+// ---------------------------------------------------------------------------
+
+export interface KarmaResult {
+  total_karma: number;
+  level: string;
+  participated_events: number;
+  verified_service_hours: number | null;
+  emergency_contributions: number;
+  breakdown: { participation: number; verified_service: number; emergency_contribution: number };
+  recent_contributions: Array<{
+    event_id: string;
+    title: string | null;
+    start_at: string | null;
+    event_type: string | null;
+    points: number;
+    reason: string;
+    hours: number | null;
+  }>;
+}
+
+export async function getMyKarma(token: string): Promise<KarmaResult> {
+  return (await apiClient<KarmaResult>('/volunteers/me/karma', { token })).data;
+}
+
+// ---------------------------------------------------------------------------
 // Step 12 — Engagement & retention analytics
 // ---------------------------------------------------------------------------
 

@@ -9,7 +9,7 @@
     "start": "node dist/server.js",
     "type-check": "tsc --noEmit",
     "lint": "echo API lint check passed",
-    "test": "node --import tsx --test src/modules/core/validation.test.ts src/modules/core/volunteerInfo.test.ts src/modules/core/opportunities.test.ts src/modules/matching/matching.test.ts src/modules/reliability/reliability.test.ts src/modules/scheduling/scheduling.test.ts src/modules/emergency/emergency.test.ts src/modules/analytics/analytics.test.ts"
+    "test": "node --import tsx --test src/modules/core/validation.test.ts src/modules/core/volunteerInfo.test.ts src/modules/core/opportunities.test.ts src/modules/matching/matching.test.ts src/modules/reliability/reliability.test.ts src/modules/scheduling/scheduling.test.ts src/modules/emergency/emergency.test.ts src/modules/analytics/analytics.test.ts src/modules/karma/karma.test.ts"
   },
   "dependencies": {
     "@clerk/backend": "^3.22.0",

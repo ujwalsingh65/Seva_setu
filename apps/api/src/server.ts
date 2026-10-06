@@ -16,6 +16,7 @@ import { matchingRouter } from './modules/matching/routes.js';
 import { reliabilityRouter } from './modules/reliability/routes.js';
 import { emergencyRouter } from './modules/emergency/routes.js';
 import { analyticsRouter } from './modules/analytics/routes.js';
+import { karmaRouter } from './modules/karma/routes.js';
 import { schedulingRouter } from './modules/scheduling/routes.js';
 
 dotenv.config();
@@ -67,6 +68,7 @@ app.use('/api/v1/auth', authRouter);
 app.use('/api/v1', coreRouter);
 app.use('/api/v1', matchingRouter);
 app.use('/api/v1', analyticsRouter);
+app.use('/api/v1', karmaRouter);
 app.use('/api/v1', emergencyRouter);
 app.use('/api/v1', schedulingRouter);
 app.use('/api/v1', reliabilityRouter);
