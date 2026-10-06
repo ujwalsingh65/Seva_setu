@@ -14,6 +14,7 @@ import { handleClerkWebhook } from './modules/auth/webhookHandler.js';
 import { coreRouter } from './modules/core/routes.js';
 import { matchingRouter } from './modules/matching/routes.js';
 import { reliabilityRouter } from './modules/reliability/routes.js';
+import { schedulingRouter } from './modules/scheduling/routes.js';
 
 dotenv.config();
 
@@ -63,6 +64,7 @@ app.get('/api/v1/health', (_req, res) => {
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1', coreRouter);
 app.use('/api/v1', matchingRouter);
+app.use('/api/v1', schedulingRouter);
 app.use('/api/v1', reliabilityRouter);
 
 // 404 handler

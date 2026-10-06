@@ -29,6 +29,7 @@ import {
   distanceBetweenKm,
   scoreAvailability,
   scoreReliability,
+  zonedParts,
 } from '../matching/matchingService.js';
 import type {
   CandidateReliability,
@@ -91,7 +92,7 @@ export function intervalsOverlap(aStart: string, aEnd: string, bStart: string, b
 }
 
 function certificationSatisfied(
-  candidate: SchedulingCandidate,
+  candidate: VolunteerCandidate,
   requiredName: string,
   shiftDate: string,
 ): boolean {
@@ -104,14 +105,14 @@ function certificationSatisfied(
 }
 
 /** Hard skill gate — every required skill must be present. */
-export function candidateHasRequiredSkills(candidate: SchedulingCandidate, requiredSkillIds: string[]): boolean {
+export function candidateHasRequiredSkills(candidate: VolunteerCandidate, requiredSkillIds: string[]): boolean {
   const owned = new Set(candidate.skills.map((row) => row.skill_id));
   return requiredSkillIds.every((id) => owned.has(id));
 }
 
 /** Hard certification gate — every required cert must be verified and unexpired. */
 export function candidateHasRequiredCertifications(
-  candidate: SchedulingCandidate,
+  candidate: VolunteerCandidate,
   requiredCertNames: string[],
   shiftDate: string,
 ): boolean {
@@ -119,7 +120,7 @@ export function candidateHasRequiredCertifications(
 }
 
 /** Hard availability gate — the volunteer must fully cover the shift window. */
-export function candidateCoversShift(candidate: SchedulingCandidate, shift: SchedulingShift): boolean {
+export function candidateCoversShift(candidate: VolunteerCandidate, shift: SchedulingShift): boolean {
   const factor = scoreAvailability(candidate.availability, shift.start_at, shift.end_at);
   return factor.status === 'full' && factor.score === 100;
 }
@@ -172,7 +173,7 @@ export function scheduleEvent(input: {
       continue;
     }
 
-    const shiftDate = shift.start_at.slice(0, 10);
+    const shiftDate = zonedParts(shift.start_at).date;
     const context: EventMatchContext = {
       event_id: input.eventId,
       geo: input.eventGeo,
@@ -205,7 +206,7 @@ export function scheduleEvent(input: {
         continue;
       }
       const match = computeMatch(candidate, context, input.skillNames ?? {});
-      feasible.push({ candidate, score: match.score, distanceKm: distanceBetweenKm(candidate.home_geo, input.eventGeo) });
+      feasible.push({ candidate, score: match.match.score, distanceKm: distanceBetweenKm(candidate.home_geo, input.eventGeo) });
     }
 
     // Deterministic ranking.

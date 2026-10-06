@@ -257,6 +257,108 @@ export async function getNgoEventMatches(
 }
 
 // ---------------------------------------------------------------------------
+// Step 10 — Automated shift & roster generator
+// ---------------------------------------------------------------------------
+
+export interface ScheduledAssignment {
+  id: string;
+  event_id: string;
+  shift_id: string;
+  volunteer_id: string;
+  status: 'draft' | 'confirmed' | 'cancelled';
+  explanation: string | null;
+  created_at: string;
+  updated_at: string;
+  volunteer: PublicVolunteerInfo | null;
+}
+
+export interface NgoScheduledShift {
+  id: string;
+  start_at: string;
+  end_at: string;
+  headcount: number;
+  role: string | null;
+  assigned_count: number;
+  unfilled: number;
+  assignments: ScheduledAssignment[];
+}
+
+export interface NgoEventSchedule {
+  event: { id: string; title: string; start_at: string; end_at: string; status: string };
+  shifts: NgoScheduledShift[];
+}
+
+export interface RosterGenerationResult {
+  event_id: string;
+  generated: number;
+  gaps: Array<{ shift_id: string; role: string; required: number; assigned: number; unfilled: number; reason: string }>;
+  rejected_shifts: Array<{ shift_id: string; reason: string }>;
+}
+
+export interface MyScheduleRow {
+  assignment_id: string;
+  status: 'draft' | 'confirmed' | 'cancelled';
+  role: string | null;
+  shift_start: string;
+  shift_end: string;
+  event: { id: string; title: string; venue: string; start_at: string; end_at: string };
+}
+
+export async function getNgoEventSchedule(token: string, ngoId: string, eventId: string): Promise<NgoEventSchedule> {
+  return (await apiClient<NgoEventSchedule>(`/ngos/${ngoId}/events/${eventId}/schedule`, { token })).data;
+}
+
+export async function generateEventRoster(token: string, ngoId: string, eventId: string): Promise<RosterGenerationResult> {
+  return (
+    await apiClient<RosterGenerationResult>(`/ngos/${ngoId}/events/${eventId}/roster/generate`, {
+      method: 'POST',
+      token,
+    })
+  ).data;
+}
+
+export async function confirmEventRoster(token: string, ngoId: string, eventId: string): Promise<{ confirmed: number }> {
+  return (
+    await apiClient<{ confirmed: number }>(`/ngos/${ngoId}/events/${eventId}/roster/confirm`, {
+      method: 'POST',
+      token,
+    })
+  ).data;
+}
+
+export async function removeRosterAssignment(
+  token: string,
+  ngoId: string,
+  eventId: string,
+  assignmentId: string,
+): Promise<void> {
+  await apiClient<unknown>(`/ngos/${ngoId}/events/${eventId}/roster/assignments/${assignmentId}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
+export async function reassignRosterAssignment(
+  token: string,
+  ngoId: string,
+  eventId: string,
+  assignmentId: string,
+  volunteerId: string,
+): Promise<unknown> {
+  return (
+    await apiClient<unknown>(`/ngos/${ngoId}/events/${eventId}/roster/assignments/${assignmentId}`, {
+      method: 'PATCH',
+      token,
+      body: { volunteer_id: volunteerId },
+    })
+  ).data;
+}
+
+export async function getMySchedule(token: string): Promise<MyScheduleRow[]> {
+  return (await apiClient<MyScheduleRow[]>('/volunteers/me/schedule', { token })).data;
+}
+
+// ---------------------------------------------------------------------------
 // Step 9 — Participation recording + explainable reliability
 // ---------------------------------------------------------------------------
 

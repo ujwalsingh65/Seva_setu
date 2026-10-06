@@ -4,6 +4,7 @@ import { CalendarDays, ClipboardList, Compass, MapPin, Sparkles, UserRound } fro
 import { useApiQuery } from '../../hooks/useApi';
 import { ROUTES } from '../../routes';
 import {
+  getMySchedule,
   getMyVolunteerProfile,
   listMyApplications,
   listPublicEvents,
@@ -12,6 +13,7 @@ import {
 } from '../../services/api/endpoints';
 import { formatDateTime, isUpcoming } from '../../utils/format';
 import {
+  Badge,
   Button,
   Card,
   CardContent,
@@ -37,14 +39,16 @@ export function VolunteerDashboardPage() {
   const profile = useApiQuery(getMyVolunteerProfile);
   const events = useApiQuery(listPublicEvents);
   const applications = useApiQuery(listMyApplications);
+  const schedule = useApiQuery(getMySchedule);
 
-  const loading = profile.loading || events.loading || applications.loading;
-  const error = profile.error ?? events.error ?? applications.error;
+  const loading = profile.loading || events.loading || applications.loading || schedule.loading;
+  const error = profile.error ?? events.error ?? applications.error ?? schedule.error;
 
   const refetchAll = () => {
     profile.refetch();
     events.refetch();
     applications.refetch();
+    schedule.refetch();
   };
 
   const eventById = useMemo(
@@ -162,6 +166,35 @@ export function VolunteerDashboardPage() {
             My Reliability
           </h2>
           <ReliabilitySection />
+        </section>
+      )}
+
+      {!profileMissing && (schedule.data?.length ?? 0) > 0 && (
+        <section className="mt-8" aria-labelledby="my-shifts-heading">
+          <h2 id="my-shifts-heading" className="mb-4 text-h3 text-brand-teal">
+            My assigned shifts
+          </h2>
+          <ul className="grid gap-4 md:grid-cols-2">
+            {(schedule.data ?? []).slice(0, 6).map((row) => (
+              <li key={row.assignment_id}>
+                <Card>
+                  <CardHeader icon={CalendarDays} action={
+                    <Badge variant={row.status === 'confirmed' ? 'success' : 'info'} size="sm" dot>
+                      {row.status === 'confirmed' ? 'Confirmed' : 'Draft'}
+                    </Badge>
+                  }>
+                    <CardTitle>{row.event.title}</CardTitle>
+                    <CardDescription>{formatDateTime(row.shift_start)} – {formatDateTime(row.shift_end)}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-small text-brand-text-secondary">
+                      {row.role ? `Role: ${row.role}` : 'Role pending'} · {row.status === 'confirmed' ? 'Confirmed' : 'Awaiting confirmation'}
+                    </p>
+                  </CardContent>
+                </Card>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
