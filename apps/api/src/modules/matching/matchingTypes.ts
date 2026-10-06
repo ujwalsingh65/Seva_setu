@@ -16,6 +16,10 @@
  * windows — only the VolunteerPublicInfo whitelist.
  */
 import type { PublicVolunteerInfo } from '../core/volunteerInfo.js';
+import type { ReliabilityMatchSummary } from '../reliability/reliabilityTypes.js';
+
+/** Real reliability summary for a candidate; null/undefined = no data yet. */
+export type CandidateReliability = ReliabilityMatchSummary | null;
 
 export type MatchFactorStatus = 'full' | 'partial' | 'none' | 'not_assessable';
 
@@ -98,6 +102,8 @@ export interface VolunteerCandidate {
   skills: CandidateSkillRow[];
   certifications: CandidateCertificationRow[];
   availability: CandidateAvailabilityRow[];
+  /** Step 9: real reliability from recorded participation, or null (insufficient data). */
+  reliability?: CandidateReliability;
 }
 
 export interface EventMatchContext {

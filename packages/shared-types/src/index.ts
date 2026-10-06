@@ -13,6 +13,8 @@ import {
   ASSIGNMENT_STATUSES,
   ROSTER_STATUSES,
   ATTENDANCE_STATUSES,
+  PARTICIPATION_STATUSES,
+  CANCELLATION_SOURCES,
   EMERGENCY_VOLUNTEER_STATES,
   EMERGENCY_URGENCY,
   EMERGENCY_STATUSES,
@@ -291,6 +293,25 @@ export interface Database {
           DatabaseRelationship<'applications_volunteer_id_fkey', ['volunteer_id'], 'volunteer_profiles', ['user_id']>,
         ]
       >;
+      participations: CoreTable<
+        Participation,
+        'id' | 'cancellation_source' | 'check_in_at' | 'check_out_at' | 'participation_hours' | 'created_at' | 'updated_at',
+        [
+          DatabaseRelationship<'participations_event_id_fkey', ['event_id'], 'events', ['id']>,
+          DatabaseRelationship<'participations_volunteer_id_fkey', ['volunteer_id'], 'volunteer_profiles', ['user_id']>,
+          DatabaseRelationship<'participations_recorded_by_fkey', ['recorded_by'], 'users', ['id']>,
+        ]
+      >;
+      roster_assignments: CoreTable<
+        RosterAssignment,
+        'id' | 'status' | 'explanation' | 'created_at' | 'updated_at',
+        [
+          DatabaseRelationship<'roster_assignments_event_id_fkey', ['event_id'], 'events', ['id']>,
+          DatabaseRelationship<'roster_assignments_shift_id_fkey', ['shift_id'], 'shifts', ['id']>,
+          DatabaseRelationship<'roster_assignments_volunteer_id_fkey', ['volunteer_id'], 'volunteer_profiles', ['user_id']>,
+          DatabaseRelationship<'roster_assignments_created_by_fkey', ['created_by'], 'users', ['id']>,
+        ]
+      >;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -375,6 +396,37 @@ export interface Task {
   status: 'pending' | 'completed' | 'cancelled';
   completed_at?: string | null;
   verified_by?: string | null;
+}
+
+// --- Roster assignments (Step 10) ---
+export interface RosterAssignment {
+  id: string;
+  event_id: string;
+  shift_id: string;
+  volunteer_id: string;
+  status: 'draft' | 'confirmed' | 'cancelled';
+  explanation: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// --- Participation (Step 9) ---
+export type ParticipationStatus = (typeof PARTICIPATION_STATUSES)[keyof typeof PARTICIPATION_STATUSES];
+export type CancellationSource = (typeof CANCELLATION_SOURCES)[keyof typeof CANCELLATION_SOURCES];
+
+export interface Participation {
+  id: string;
+  event_id: string;
+  volunteer_id: string;
+  status: ParticipationStatus;
+  cancellation_source: CancellationSource | null;
+  check_in_at: string | null;
+  check_out_at: string | null;
+  participation_hours: number | null;
+  recorded_by: string;
+  created_at: string;
+  updated_at: string;
 }
 
 // --- Reliability & Karma ---

@@ -67,6 +67,12 @@ function MatchCard({ match }: { match: EventMatch }) {
           {match.score}% match
         </Badge>
       </div>
+      <p className="mt-2 text-small font-medium text-brand-text-secondary">
+        Reliability:{' '}
+        {match.factors.reliability.status === 'not_assessable'
+          ? 'Building history'
+          : `${match.factors.reliability.score} / 100`}
+      </p>
       <p className="mt-2 text-caption text-brand-text-muted">
         {FACTOR_KEYS.map((key) => factorSummary(key, match.factors[key])).join(' · ')}
       </p>

@@ -24,6 +24,7 @@ import {
   SkeletonCard,
 } from '../../components/ui';
 import { PageHeader, StatusBadge } from '../../components/shared';
+import { ReliabilitySection } from '../../components/volunteer';
 
 const ACTIVE_APPLICATION_STATUSES = ['interested', 'accepted', 'waitlisted'] as const;
 
@@ -148,11 +149,21 @@ export function VolunteerDashboardPage() {
           <CardContent>
             <p className="font-medium text-brand-text-secondary">Impact insights</p>
             <CardDescription>
-              Service hours, karma, and reliability metrics are planned for a later step.
+              Service hours and karma are planned for a later step. Your reliability record is
+              below.
             </CardDescription>
           </CardContent>
         </Card>
       </div>
+
+      {!profileMissing && (
+        <section className="mt-8" aria-labelledby="my-reliability-heading">
+          <h2 id="my-reliability-heading" className="sr-only">
+            My Reliability
+          </h2>
+          <ReliabilitySection />
+        </section>
+      )}
 
       <section className="mt-8" aria-labelledby="upcoming-registrations-heading">
         <div className="flex items-center justify-between mb-4">

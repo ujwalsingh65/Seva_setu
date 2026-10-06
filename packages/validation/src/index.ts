@@ -9,6 +9,8 @@ import {
   EVENT_STATUSES,
   EVENT_VISIBILITY,
   APPLICATION_STATUSES,
+  PARTICIPATION_STATUSES,
+  CANCELLATION_SOURCES,
   EMERGENCY_URGENCY,
 } from '@sevasetu/constants';
 
@@ -165,6 +167,57 @@ export const applicationDecisionSchema = z.object({
     APPLICATION_STATUSES.WAITLISTED,
     APPLICATION_STATUSES.REJECTED,
   ]),
+}).strict();
+
+// Step 9 — NGO-recorded participation outcomes. Check-in/out/hours are
+// optional and must be real recorded values (never fabricated by clients).
+export const participationOutcomeSchema = z.object({
+  volunteer_id: z.string().uuid(),
+  status: z.enum([
+    PARTICIPATION_STATUSES.ATTENDED,
+    PARTICIPATION_STATUSES.LATE,
+    PARTICIPATION_STATUSES.NO_SHOW,
+    PARTICIPATION_STATUSES.CANCELLED,
+  ]),
+  cancellation_source: z.enum([
+    CANCELLATION_SOURCES.VOLUNTEER,
+    CANCELLATION_SOURCES.NGO,
+    CANCELLATION_SOURCES.EVENT,
+    CANCELLATION_SOURCES.SYSTEM,
+  ]).nullable().optional(),
+  check_in_at: z.string().datetime().nullable().optional(),
+  check_out_at: z.string().datetime().nullable().optional(),
+  participation_hours: z.number().min(0).max(24).nullable().optional(),
+}).strict().superRefine((outcome, ctx) => {
+  if (outcome.status === PARTICIPATION_STATUSES.CANCELLED && !outcome.cancellation_source) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['cancellation_source'],
+      message: 'cancellation_source is required when status is cancelled',
+    });
+  }
+  if (outcome.status !== PARTICIPATION_STATUSES.CANCELLED && outcome.cancellation_source) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['cancellation_source'],
+      message: 'cancellation_source is only allowed when status is cancelled',
+    });
+  }
+  if (
+    outcome.check_in_at &&
+    outcome.check_out_at &&
+    Date.parse(outcome.check_out_at) <= Date.parse(outcome.check_in_at)
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['check_out_at'],
+      message: 'check_out_at must be after check_in_at',
+    });
+  }
+});
+
+export const recordParticipationSchema = z.object({
+  outcomes: z.array(participationOutcomeSchema).min(1).max(500),
 }).strict();
 
 export const emergencyRequestSchema = z.object({

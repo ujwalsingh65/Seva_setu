@@ -271,12 +271,39 @@ describe('experience and reliability (schema-gap fallbacks)', () => {
     assert.ok(factor.detail);
   });
 
-  it('reliability is always not_assessable — no attendance history exists', () => {
+  it('reliability is not_assessable when no history exists (insufficient data — never zero)', () => {
     const factor = scoreReliability();
     assert.equal(factor.score, 0);
     assert.equal(factor.status, 'not_assessable');
     assert.equal(factor.weight, 10);
-    assert.ok(factor.detail);
+    assert.equal(factor.detail, 'Reliability history is still being established.');
+  });
+
+  it('reliability is not_assessable for insufficient_data even with a provisional-shaped summary', () => {
+    const factor = scoreReliability({ status: 'insufficient_data', score: null, attended: 1, late: 0, no_show: 0, volunteer_cancelled: 0 });
+    assert.equal(factor.status, 'not_assessable');
+    assert.equal(factor.detail, 'Reliability history is still being established.');
+  });
+
+  it('established reliability feeds the real score in as a full/strong factor', () => {
+    const factor = scoreReliability({ status: 'established', score: 92, attended: 7, late: 0, no_show: 0, volunteer_cancelled: 0 });
+    assert.equal(factor.score, 92);
+    assert.equal(factor.status, 'full');
+    assert.equal(factor.label, 'Strong reliability history');
+    assert.equal(factor.detail, '7 attended, 0 no-shows.');
+    assert.equal(factor.weight, 10);
+  });
+
+  it('a provisional middle score maps to partial with an honest label', () => {
+    const factor = scoreReliability({ status: 'provisional', score: 60, attended: 3, late: 0, no_show: 1, volunteer_cancelled: 0 });
+    assert.equal(factor.status, 'partial');
+    assert.equal(factor.label, 'Mixed reliability history');
+  });
+
+  it('an established zero score stays an honest none — never hidden', () => {
+    const factor = scoreReliability({ status: 'established', score: 0, attended: 0, late: 0, no_show: 5, volunteer_cancelled: 0 });
+    assert.equal(factor.status, 'none');
+    assert.equal(factor.score, 0);
   });
 });
 
@@ -355,10 +382,43 @@ describe('computeMatch', () => {
     assert.deepEqual(a.match.factors.experience, b.match.factors.experience);
   });
 
-  it('the reliability factor is identical (not assessable) regardless of the candidate', () => {
+  it('the reliability factor is identical (not assessable) when neither candidate has evidence', () => {
     const a = computeMatch(makeCandidate(), CONTEXT, SKILL_NAMES);
     const b = computeMatch(makeCandidate({ user_id: 'vol-2' }), CONTEXT, SKILL_NAMES);
     assert.deepEqual(a.match.factors.reliability, b.match.factors.reliability);
+  });
+
+  it('Step 9: an established reliability score enters the match; total renormalizes honestly', () => {
+    const candidate = makeCandidate({
+      reliability: { status: 'established', score: 100, attended: 7, late: 0, no_show: 0, volunteer_cancelled: 0 },
+    });
+    const { match } = computeMatch(candidate, CONTEXT, SKILL_NAMES);
+    assert.equal(match.factors.reliability.score, 100);
+    assert.equal(match.factors.reliability.status, 'full');
+    assert.equal(match.score, 100);
+  });
+
+  it('Step 9: insufficient reliability keeps the Step 8 fallback (not_assessable, no penalty)', () => {
+    const candidate = makeCandidate({
+      reliability: { status: 'insufficient_data', score: null, attended: 0, late: 0, no_show: 0, volunteer_cancelled: 0 },
+    });
+    const { match } = computeMatch(candidate, CONTEXT, SKILL_NAMES);
+    assert.equal(match.factors.reliability.status, 'not_assessable');
+    assert.equal(match.score, 100); // same renormalized total as Step 8's gap behavior
+  });
+
+  it('Step 9: a weak established reliability lowers the total via its 10-point weight', () => {
+    const perfect = computeMatch(makeCandidate(), CONTEXT, SKILL_NAMES);
+    const weak = computeMatch(
+      makeCandidate({
+        reliability: { status: 'established', score: 40, attended: 2, late: 0, no_show: 3, volunteer_cancelled: 0 },
+      }),
+      CONTEXT,
+      SKILL_NAMES,
+    );
+    assert.ok(weak.match.score < perfect.match.score);
+    const serialized = JSON.stringify(weak.match.factors.reliability);
+    assert.ok(serialized.includes('no-shows'));
   });
 
   it('returns only whitelisted volunteer fields and no private data', () => {

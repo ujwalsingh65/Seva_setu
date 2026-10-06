@@ -8,9 +8,10 @@
  * NGO (else 404, indistinguishable from a missing event) → event must be
  * published (else 409, same rule as the application endpoint).
  *
- * Performance: exactly five Supabase queries per request (event,
- * requirements, skills, candidates, applications) — never one per volunteer.
- * Scoring, filtering, and ranking happen in memory via matchingService.
+ * Performance: exactly six Supabase queries per request (event,
+ * requirements, skills, candidates, applications, participation outcomes) —
+ * never one per volunteer. Scoring, filtering, and ranking happen in memory
+ * via matchingService.
  */
 import { Router, type Request } from 'express';
 import { z } from 'zod';
@@ -24,6 +25,8 @@ import {
   filterEligibleCandidates,
   rankScoredMatches,
 } from './matchingService.js';
+import { summarizeReliabilityForMatching } from '../reliability/reliabilityService.js';
+import type { ReliabilityMatchSummary } from '../reliability/reliabilityTypes.js';
 import type {
   ApplicationStatusRow,
   EventMatchContext,
@@ -114,6 +117,30 @@ router.get('/ngos/:ngoId/events/:eventId/matches', requireAuth, async (req, res,
       .select('volunteer_id, status')
       .eq('event_id', eventId);
     if (applicationsError) throw databaseError(applicationsError);
+
+    // Step 9: one batch query over all candidates' participation outcomes —
+    // never one reliability query per candidate.
+    const candidateIds = candidates.map((candidate) => candidate.user_id);
+    const reliabilityByVolunteer = new Map<string, ReliabilityMatchSummary>();
+    if (candidateIds.length > 0) {
+      const { data: participationRows, error: participationError } = await supabaseAdmin
+        .from('participations')
+        .select('volunteer_id, status, cancellation_source')
+        .in('volunteer_id', candidateIds);
+      if (participationError) throw databaseError(participationError);
+      const grouped = new Map<string, Array<{ status: string; cancellation_source: string | null }>>();
+      for (const row of participationRows ?? []) {
+        const bucket = grouped.get(row.volunteer_id) ?? [];
+        bucket.push({ status: row.status, cancellation_source: row.cancellation_source });
+        grouped.set(row.volunteer_id, bucket);
+      }
+      for (const [volunteerId, rows] of grouped) {
+        reliabilityByVolunteer.set(volunteerId, summarizeReliabilityForMatching(rows));
+      }
+    }
+    for (const candidate of candidates) {
+      candidate.reliability = reliabilityByVolunteer.get(candidate.user_id) ?? null;
+    }
 
     // Multiple requirement rows (per-role) are unioned: all required skills,
     // all required certifications, and the highest experience bar apply.

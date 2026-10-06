@@ -89,3 +89,32 @@ export const DEFAULT_RELIABILITY_CONFIG: ReliabilityConfig = {
   cancellationWithNoticePenalty: 5,
   taskCompletionWeight: 0.3,
 };
+
+/**
+ * Step 9 — explainable reliability score. Deterministic, rules-based
+ * (NOT an ML prediction). Points out of 100; the four factor scores are
+ * each 0-100 and the total is their weighted sum, weights summing to 100.
+ *
+ *   score = attendance*0.50 + noShow*0.25 + cancellations*0.15 + consistency*0.10
+ *
+ * Evidence thresholds (counted "evaluated" records = attended + late +
+ * no_show + volunteer-caused cancellations; ngo/event/system
+ * cancellations are excluded entirely):
+ *   < RELIABILITY_MIN_EVIDENCE               → insufficient_data (no score)
+ *   >= RELIABILITY_MIN_EVIDENCE, < RELIABILITY_ESTABLISHED_EVIDENCE → provisional
+ *   >= RELIABILITY_ESTABLISHED_EVIDENCE      → established
+ *
+ * Consistency reaches full marks at RELIABILITY_CONSISTENCY_FULL_AT
+ * completed records — it measures demonstrated history volume, never
+ * account age.
+ */
+export const RELIABILITY_FACTOR_WEIGHTS = {
+  attendance: 50,
+  noShow: 25,
+  cancellations: 15,
+  consistency: 10,
+} as const;
+
+export const RELIABILITY_MIN_EVIDENCE = 3;
+export const RELIABILITY_ESTABLISHED_EVIDENCE = 5;
+export const RELIABILITY_CONSISTENCY_FULL_AT = 5;

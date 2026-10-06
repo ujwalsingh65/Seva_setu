@@ -63,6 +63,22 @@ export const ATTENDANCE_STATUSES = {
   CANCELLED: 'cancelled',
 } as const;
 
+// Step 9 — recorded participation outcomes (per event+volunteer).
+export const PARTICIPATION_STATUSES = {
+  ATTENDED: 'attended',
+  LATE: 'late',
+  NO_SHOW: 'no_show',
+  CANCELLED: 'cancelled',
+} as const;
+
+// Who caused a cancellation. Only 'volunteer' is ever penalized in reliability.
+export const CANCELLATION_SOURCES = {
+  VOLUNTEER: 'volunteer',
+  NGO: 'ngo',
+  EVENT: 'event',
+  SYSTEM: 'system',
+} as const;
+
 export const EMERGENCY_VOLUNTEER_STATES = {
   ALERTED: 'alerted',
   CONFIRMED: 'confirmed',

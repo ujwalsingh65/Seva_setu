@@ -6,11 +6,12 @@
  *      skills, certifications, availability, experience, proximity, reliability.
  *   2. Each factor reports its configured weight (points) and a status:
  *      'full' | 'partial' | 'none' | 'not_assessable'.
- *   3. Factors that cannot be assessed from real data (experience and
- *      reliability in v1 — no schema support yet; proximity/availability when
- *      the inputs are missing) are EXCLUDED from the volunteer's total, which
- *      is renormalized over the assessable factors only. Nothing is ever
- *      fabricated to fill a gap.
+ *   3. Factors that cannot be assessed from real data (experience — still no
+ *      schema support; reliability when a volunteer has insufficient
+ *      participation history; proximity/availability when the inputs are
+ *      missing) are EXCLUDED from the volunteer's total, which is renormalized
+ *      over the assessable factors only. Nothing is ever fabricated to fill a
+ *      gap. Step 9 wires the real reliability score in where established.
  *   4. Ranking is deterministic: score desc, reliability desc, smaller
  *      distance, then volunteer_id asc.
  *
@@ -21,7 +22,8 @@
  * MISSING DATA (documented fallbacks):
  *   - experience: 'not_assessable' — event_requirements.min_experience has no
  *     volunteer-side numeric counterpart (volunteer_skills.level is free text).
- *   - reliability: 'not_assessable' — no attendance/history table exists yet.
+ *   - reliability: real Step 9 score when established/provisional; otherwise
+ *     'not_assessable' (insufficient evidence) — never zero.
  *   - proximity: 'not_assessable' when either home or event geo is missing.
  *   - availability: 'not_assessable' when the volunteer has no availability
  *     rows, or only unrelated date exceptions (no weekly pattern on file).
@@ -37,6 +39,7 @@ import type {
   ApplicationStatusRow,
   CandidateAvailabilityRow,
   CandidateCertificationRow,
+  CandidateReliability,
   EventMatchContext,
   ListFactor,
   MatchFactors,
@@ -254,7 +257,12 @@ export function scoreProximity(
 }
 
 // ---------------------------------------------------------------------------
-// Experience and reliability — schema-gap fallbacks, never fabricated.
+// Experience and reliability — real data where it exists, never fabricated.
+// Step 8 reported reliability as 'not_assessable' because no attendance data
+// existed. Step 9 feeds the real, explainable reliability score in; when the
+// volunteer has insufficient evidence the factor stays 'not_assessable' and
+// the match total renormalizes over assessable factors (same documented
+// fallback as Step 8 — missing reliability is NEVER treated as zero).
 // ---------------------------------------------------------------------------
 
 export function scoreExperience(weight: number = DEFAULT_MATCHING_WEIGHTS.experience): ListFactor {
@@ -266,12 +274,26 @@ export function scoreExperience(weight: number = DEFAULT_MATCHING_WEIGHTS.experi
   };
 }
 
-export function scoreReliability(weight: number = DEFAULT_MATCHING_WEIGHTS.reliability): ListFactor {
+export function scoreReliability(
+  reliability?: CandidateReliability,
+  weight: number = DEFAULT_MATCHING_WEIGHTS.reliability,
+): ListFactor {
+  if (!reliability || reliability.status === 'insufficient_data' || reliability.score === null) {
+    return {
+      score: 0,
+      weight,
+      status: 'not_assessable',
+      detail: 'Reliability history is still being established.',
+    };
+  }
+  const score = reliability.score;
   return {
-    score: 0,
+    score,
     weight,
-    status: 'not_assessable',
-    detail: 'Attendance history is not tracked yet, so reliability cannot be scored.',
+    status: score >= 80 ? 'full' : score > 0 ? 'partial' : 'none',
+    label:
+      score >= 80 ? 'Strong reliability history' : score >= 50 ? 'Mixed reliability history' : 'Weak reliability history',
+    detail: `${reliability.attended} attended, ${reliability.no_show} no-shows.`,
   };
 }
 
@@ -304,7 +326,7 @@ export function computeMatch(
     availability: scoreAvailability(candidate.availability, context.start_at, context.end_at, weights.availability),
     experience: scoreExperience(weights.experience),
     proximity: scoreProximity(distanceKm, candidate.max_distance_km, weights.proximity),
-    reliability: scoreReliability(weights.reliability),
+    reliability: scoreReliability(candidate.reliability, weights.reliability),
   };
 
   // Total is normalized over the factors that could actually be assessed, so

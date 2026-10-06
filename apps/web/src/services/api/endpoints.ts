@@ -255,3 +255,101 @@ export async function getNgoEventMatches(
   );
   return data;
 }
+
+// ---------------------------------------------------------------------------
+// Step 9 — Participation recording + explainable reliability
+// ---------------------------------------------------------------------------
+
+export type ParticipationRow = Database['public']['Tables']['participations']['Row'];
+
+export type ReliabilityStatus = 'insufficient_data' | 'provisional' | 'established';
+
+export interface ReliabilityHistory {
+  eligible_events: number;
+  attended: number;
+  late: number;
+  no_show: number;
+  volunteer_cancelled: number;
+  event_cancelled: number;
+}
+
+export interface ReliabilityFactor {
+  score: number;
+  weight: number;
+  earned: number;
+  explanation: string;
+}
+
+export interface ReliabilityResult {
+  volunteer_id: string;
+  score: number | null;
+  status: ReliabilityStatus;
+  label: string;
+  history: ReliabilityHistory;
+  factors: {
+    attendance: ReliabilityFactor;
+    no_show: ReliabilityFactor;
+    cancellations: ReliabilityFactor;
+    consistency: ReliabilityFactor;
+  } | null;
+  minimum_evidence: number;
+  explanation: string;
+}
+
+export interface NgoEventParticipation {
+  event: { id: string; title: string; status: string };
+  volunteers: Array<{
+    id: string;
+    event_id: string;
+    volunteer_id: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+    volunteer: PublicVolunteerInfo | null;
+    participation: ParticipationRow | null;
+  }>;
+}
+
+export interface ParticipationOutcomeInput {
+  volunteer_id: string;
+  status: 'attended' | 'late' | 'no_show' | 'cancelled';
+  cancellation_source?: 'volunteer' | 'ngo' | 'event' | 'system' | null;
+  check_in_at?: string | null;
+  check_out_at?: string | null;
+  participation_hours?: number | null;
+}
+
+/** The signed-in volunteer's own reliability record. */
+export async function getMyReliability(token: string): Promise<ReliabilityResult> {
+  return (await apiClient<ReliabilityResult>('/volunteers/me/reliability', { token })).data;
+}
+
+/** The signed-in volunteer's own participation history. */
+export async function getMyParticipation(token: string): Promise<ParticipationRow[]> {
+  return (await apiClient<ParticipationRow[]>('/volunteers/me/participation', { token })).data;
+}
+
+export async function getNgoEventParticipation(
+  token: string,
+  ngoId: string,
+  eventId: string,
+): Promise<NgoEventParticipation> {
+  return (
+    await apiClient<NgoEventParticipation>(`/ngos/${ngoId}/events/${eventId}/participation`, { token })
+  ).data;
+}
+
+export async function recordNgoParticipation(
+  token: string,
+  ngoId: string,
+  eventId: string,
+  outcomes: ParticipationOutcomeInput[],
+): Promise<ParticipationRow[]> {
+  return (
+    await apiClient<ParticipationRow[]>(`/ngos/${ngoId}/events/${eventId}/participation`, {
+      method: 'PUT',
+      token,
+      body: { outcomes },
+    })
+  ).data;
+}

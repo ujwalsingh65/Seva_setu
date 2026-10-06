@@ -5,7 +5,10 @@ import { APPLICATION_STATUSES } from '@sevasetu/constants';
  * Never include home_geo, max_distance_km, notification_preferences,
  * emergency_available, or user contact fields.
  */
-export const VOLUNTEER_PUBLIC_COLUMNS = 'id, name, photo_url, bio, causes';
+// Compatibility fix (Step 9, flagged in Step 8): volunteer_profiles has no
+// `id` column — its key is user_id. Alias `id:user_id` so the embedded rows
+// carry the whitelisted `id` field projectVolunteerInfo expects.
+export const VOLUNTEER_PUBLIC_COLUMNS = 'id:user_id, name, photo_url, bio, causes';
 
 export interface PublicVolunteerInfo {
   id: string;
