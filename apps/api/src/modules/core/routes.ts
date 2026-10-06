@@ -19,6 +19,7 @@ import { AppError } from '../../middleware/errorHandler.js';
 import { requireAuth, requireRole } from '../../middleware/auth.js';
 import { supabaseAdmin } from '../../lib/supabase.js';
 import type { Database } from '@sevasetu/shared-types';
+import { countAcceptedByEvent, projectVolunteerInfo, selectAccepted, VOLUNTEER_PUBLIC_COLUMNS } from './volunteerInfo.js';
 
 const router = Router();
 const eventColumns =
@@ -363,7 +364,22 @@ router.get('/events', async (_req, res, next) => {
       .eq('status', EVENT_STATUSES.PUBLISHED)
       .order('start_at', { ascending: true });
     if (error) throw databaseError(error);
-    res.json({ success: true, data });
+    const events = data ?? [];
+    if (events.length === 0) {
+      res.json({ success: true, data: [] });
+      return;
+    }
+    const { data: accepted, error: acceptedError } = await supabaseAdmin
+      .from('applications')
+      .select('event_id')
+      .eq('status', APPLICATION_STATUSES.ACCEPTED)
+      .in('event_id', events.map((event) => event.id));
+    if (acceptedError) throw databaseError(acceptedError);
+    const acceptedCounts = countAcceptedByEvent(accepted ?? []);
+    res.json({
+      success: true,
+      data: events.map((event) => ({ ...event, accepted_count: acceptedCounts[event.id] ?? 0 })),
+    });
   } catch (error) {
     next(error);
   }
@@ -381,7 +397,13 @@ router.get('/events/:eventId', async (req, res, next) => {
       .maybeSingle();
     if (error) throw databaseError(error);
     if (!data) throw new AppError('Published public event not found.', 404, 'EVENT_NOT_FOUND');
-    res.json({ success: true, data });
+    const { count, error: acceptedError } = await supabaseAdmin
+      .from('applications')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .eq('status', APPLICATION_STATUSES.ACCEPTED);
+    if (acceptedError) throw databaseError(acceptedError);
+    res.json({ success: true, data: { ...data, accepted_count: count ?? 0 } });
   } catch (error) {
     next(error);
   }
@@ -471,6 +493,46 @@ router.delete('/ngos/:ngoId/events/:eventId', requireAuth, async (req, res, next
     if (error) throw databaseError(error);
     if (!data) throw new AppError('Event not found for this NGO.', 404, 'EVENT_NOT_FOUND');
     res.json({ success: true, data: { id: data.id } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/ngos/:ngoId/events/:eventId/roster', requireAuth, async (req, res, next) => {
+  try {
+    const ngoId = routeParam(req, 'ngoId');
+    const eventId = routeParam(req, 'eventId');
+    await authorizeNgoMember(req.auth!.appUserId, req.auth!.appRole, ngoId);
+
+    const { data: event, error: eventError } = await supabaseAdmin
+      .from('events')
+      .select('id, title, start_at, end_at, capacity, status')
+      .eq('id', eventId)
+      .eq('ngo_id', ngoId)
+      .maybeSingle();
+    if (eventError) throw databaseError(eventError);
+    if (!event) throw new AppError('Event not found for this NGO.', 404, 'EVENT_NOT_FOUND');
+
+    const { data: acceptedRows, error: acceptedError } = await supabaseAdmin
+      .from('applications')
+      .select(`id, event_id, volunteer_id, status, created_at, updated_at, volunteer:volunteer_profiles(${VOLUNTEER_PUBLIC_COLUMNS})`)
+      .eq('event_id', eventId)
+      .eq('status', APPLICATION_STATUSES.ACCEPTED)
+      .order('created_at', { ascending: true });
+    if (acceptedError) throw databaseError(acceptedError);
+
+    const accepted = selectAccepted(acceptedRows);
+    res.json({
+      success: true,
+      data: {
+        event,
+        accepted_count: accepted.length,
+        volunteers: accepted.map((row) => ({
+          ...row,
+          volunteer: projectVolunteerInfo(row.volunteer),
+        })),
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -571,10 +633,14 @@ router.get('/ngos/:ngoId/applications', requireAuth, async (req, res, next) => {
     }
     const { data, error } = await supabaseAdmin
       .from('applications')
-      .select('id, event_id, volunteer_id, status, created_at, updated_at')
+      .select(`id, event_id, volunteer_id, status, created_at, updated_at, volunteer:volunteer_profiles(${VOLUNTEER_PUBLIC_COLUMNS})`)
       .in('event_id', eventIds);
     if (error) throw databaseError(error);
-    res.json({ success: true, data });
+    const applications = (data ?? []).map((row) => ({
+      ...row,
+      volunteer: projectVolunteerInfo(row.volunteer),
+    }));
+    res.json({ success: true, data: applications });
   } catch (error) {
     next(error);
   }

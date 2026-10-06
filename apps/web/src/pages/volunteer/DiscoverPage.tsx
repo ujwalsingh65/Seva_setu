@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { CalendarDays, MapPin, Search, Users } from 'lucide-react';
 import { useApiQuery } from '../../hooks/useApi';
 import { ROUTES } from '../../routes';
-import { listPublicEvents, type EventRow } from '../../services/api/endpoints';
+import { listPublicEvents, type PublicEventRow } from '../../services/api/endpoints';
 import { formatDateTime, isUpcoming } from '../../utils/format';
 import {
   Button,
@@ -30,7 +30,7 @@ const DATE_WINDOW_OPTIONS = [
 type DateWindow = 'all' | 'week' | 'month';
 
 function matchesFilters(
-  event: EventRow,
+  event: PublicEventRow,
   query: string,
   cause: string,
   dateWindow: DateWindow,
@@ -71,7 +71,7 @@ export function DiscoverPage() {
       .sort(
         (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
       );
-  }, [events, query, cause, window]);
+  }, [events, query, cause, dateWindow]);
 
   const hasActiveFilters = query.trim() !== '' || cause !== '' || dateWindow !== 'all';
 
@@ -181,7 +181,9 @@ export function DiscoverPage() {
                       </p>
                       <p className="mt-1 flex items-center gap-1 text-small text-brand-text-secondary">
                         <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        {event.capacity} volunteer{event.capacity === 1 ? '' : 's'} needed
+                        {event.capacity - event.accepted_count > 0
+                          ? `${event.capacity - event.accepted_count} of ${event.capacity} spots open`
+                          : 'All spots filled'}
                       </p>
                     </CardContent>
                     <CardFooter>

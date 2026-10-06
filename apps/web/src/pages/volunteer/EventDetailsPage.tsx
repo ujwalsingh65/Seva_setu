@@ -191,7 +191,7 @@ export function VolunteerEventDetailsPage() {
                     <Users className="h-4 w-4" aria-hidden="true" /> Capacity
                   </dt>
                   <dd className="text-small text-brand-text mt-1">
-                    {event.capacity} volunteer{event.capacity === 1 ? '' : 's'} needed
+                    {event.accepted_count} / {event.capacity} volunteers confirmed
                   </dd>
                 </div>
                 <div>

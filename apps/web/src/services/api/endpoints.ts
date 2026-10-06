@@ -12,6 +12,27 @@ export type EventRow = Database['public']['Tables']['events']['Row'];
 export type ApplicationRow = Database['public']['Tables']['applications']['Row'];
 export type NgoProfileRow = Database['public']['Tables']['ngos']['Row'];
 
+/** Whitelisted volunteer fields the API exposes to NGO staff (Security & Access §37/§38). */
+export interface PublicVolunteerInfo {
+  id: string;
+  name: string;
+  photo_url: string | null;
+  bio: string | null;
+  causes: string[] | null;
+}
+
+/** Public event projection enriched with the backend-computed accepted count. */
+export type PublicEventRow = EventRow & { accepted_count: number };
+
+/** NGO-facing application row with the permitted volunteer info embedded. */
+export type NgoApplicationRow = ApplicationRow & { volunteer: PublicVolunteerInfo | null };
+
+export interface NgoEventRoster {
+  event: Pick<EventRow, 'id' | 'title' | 'start_at' | 'end_at' | 'capacity' | 'status'>;
+  accepted_count: number;
+  volunteers: Array<ApplicationRow & { volunteer: PublicVolunteerInfo | null }>;
+}
+
 /** Public NGO projection (GET /ngos/:ngoId/public — never includes contact). */
 export type NgoPublicProfile = Pick<
   NgoProfileRow,
@@ -85,12 +106,12 @@ export async function deleteMyAvailability(token: string, availabilityId: string
 
 // ─── Public events ────────────────────────────────────────────────────────────
 
-export async function listPublicEvents(token: string): Promise<EventRow[]> {
-  return (await apiClient<EventRow[]>('/events', { token })).data;
+export async function listPublicEvents(token: string): Promise<PublicEventRow[]> {
+  return (await apiClient<PublicEventRow[]>('/events', { token })).data;
 }
 
-export async function getPublicEvent(token: string, eventId: string): Promise<EventRow> {
-  return (await apiClient<EventRow>(`/events/${eventId}`, { token })).data;
+export async function getPublicEvent(token: string, eventId: string): Promise<PublicEventRow> {
+  return (await apiClient<PublicEventRow>(`/events/${eventId}`, { token })).data;
 }
 
 // ─── Volunteer applications ───────────────────────────────────────────────────
@@ -155,8 +176,8 @@ export async function deleteNgoEvent(token: string, ngoId: string, eventId: stri
 
 // ─── NGO applications ─────────────────────────────────────────────────────────
 
-export async function listNgoApplications(token: string, ngoId: string): Promise<ApplicationRow[]> {
-  return (await apiClient<ApplicationRow[]>(`/ngos/${ngoId}/applications`, { token })).data;
+export async function listNgoApplications(token: string, ngoId: string): Promise<NgoApplicationRow[]> {
+  return (await apiClient<NgoApplicationRow[]>(`/ngos/${ngoId}/applications`, { token })).data;
 }
 
 export async function decideNgoApplication(
@@ -171,5 +192,13 @@ export async function decideNgoApplication(
       token,
       body: { status },
     })
+  ).data;
+}
+
+// ─── NGO roster (accepted volunteers, view-only in Step 7) ────────────────────
+
+export async function getNgoEventRoster(token: string, ngoId: string, eventId: string): Promise<NgoEventRoster> {
+  return (
+    await apiClient<NgoEventRoster>(`/ngos/${ngoId}/events/${eventId}/roster`, { token })
   ).data;
 }

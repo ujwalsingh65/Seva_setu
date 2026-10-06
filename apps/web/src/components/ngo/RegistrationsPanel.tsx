@@ -107,8 +107,13 @@ export function RegistrationsPanel({ ngoId, eventId, registrationMode, onDecided
               <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
                 <div className="min-w-0">
                   <p className="text-small font-medium text-brand-text">
-                    Volunteer <span className="font-mono text-caption">{row.volunteer_id.slice(0, 8)}</span>
+                    {row.volunteer?.name ?? `Volunteer ${row.volunteer_id.slice(0, 8)}`}
                   </p>
+                  {row.volunteer?.causes?.length ? (
+                    <p className="text-caption text-brand-text-muted">
+                      Causes: {row.volunteer.causes.join(', ')}
+                    </p>
+                  ) : null}
                   <p className="text-caption text-brand-text-muted">
                     Registered {formatDateTime(row.created_at)}
                   </p>
