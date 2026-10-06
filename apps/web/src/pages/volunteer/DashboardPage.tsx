@@ -26,7 +26,7 @@ import {
   SkeletonCard,
 } from '../../components/ui';
 import { PageHeader, StatusBadge } from '../../components/shared';
-import { EmergencyInvitationsSection, ReliabilitySection } from '../../components/volunteer';
+import { EmergencyInvitationsSection, EngagementSection, ReliabilitySection } from '../../components/volunteer';
 
 const ACTIVE_APPLICATION_STATUSES = ['interested', 'accepted', 'waitlisted'] as const;
 
@@ -166,6 +166,15 @@ export function VolunteerDashboardPage() {
             My Reliability
           </h2>
           <ReliabilitySection />
+        </section>
+      )}
+
+      {!profileMissing && (
+        <section className="mt-8" aria-labelledby="my-engagement-heading">
+          <h2 id="my-engagement-heading" className="sr-only">
+            My Engagement
+          </h2>
+          <EngagementSection />
         </section>
       )}
 

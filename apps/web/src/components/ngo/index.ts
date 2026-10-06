@@ -5,4 +5,5 @@ export { RosterPanel } from './RosterPanel';
 export { MatchesPanel } from './MatchesPanel';
 export { ParticipationPanel } from './ParticipationPanel';
 export { SchedulePanel } from './SchedulePanel';
+export { NgoEngagementPanel } from './NgoEngagementPanel';
 export { NgoProfileForm } from './NgoProfileForm';

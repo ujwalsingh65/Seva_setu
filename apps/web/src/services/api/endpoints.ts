@@ -257,6 +257,47 @@ export async function getNgoEventMatches(
 }
 
 // ---------------------------------------------------------------------------
+// Step 12 — Engagement & retention analytics
+// ---------------------------------------------------------------------------
+
+export interface EngagementAnalytics {
+  volunteer_id: string;
+  status: 'new' | 'active' | 'engaged' | 'at_risk' | 'inactive';
+  status_reason: string;
+  windows: { recent_days: number; at_risk_days: number; inactive_days: number };
+  totals: {
+    events_participated: number;
+    attended: number;
+    late: number;
+    no_show: number;
+    volunteer_cancelled: number;
+    event_cancelled: number;
+    service_hours: number | null;
+    emergency_events: number;
+    last_participation_at: string | null;
+  };
+  attendance_rate: number | null;
+  recent_activity: Array<{ event_id: string; title: string | null; event_type: string | null; status: string; start_at: string }>;
+}
+
+export interface NgoEngagementAnalytics {
+  generated_for: { window_days: number; previous_window_days: number };
+  volunteers: { total: number; active: number; engaged: number; at_risk: number; inactive: number; new: number };
+  returning_volunteer_rate: number | null;
+  attendance_rate: number | null;
+  trend: { current_period: number; previous_period: number; direction: 'up' | 'down' | 'flat' };
+  insights: string[];
+}
+
+export async function getMyEngagement(token: string): Promise<EngagementAnalytics> {
+  return (await apiClient<EngagementAnalytics>('/volunteers/me/engagement', { token })).data;
+}
+
+export async function getNgoEngagementAnalytics(token: string, ngoId: string): Promise<NgoEngagementAnalytics> {
+  return (await apiClient<NgoEngagementAnalytics>(`/ngos/${ngoId}/analytics/engagement`, { token })).data;
+}
+
+// ---------------------------------------------------------------------------
 // Step 11 — Rapid emergency mobilization
 // ---------------------------------------------------------------------------
 

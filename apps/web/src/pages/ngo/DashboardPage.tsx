@@ -18,7 +18,7 @@ import {
   SkeletonCard,
 } from '../../components/ui';
 import { PageHeader, StatusBadge } from '../../components/shared';
-import { NgoGate } from '../../components/ngo';
+import { NgoEngagementPanel, NgoGate } from '../../components/ngo';
 
 const ACTIVE_EVENT_STATUSES = ['draft', 'published', 'in_progress'] as const;
 
@@ -130,6 +130,13 @@ function DashboardContent({ ngoId, ngoName }: { ngoId: string; ngoName: string }
           </CardContent>
         </Card>
       </div>
+
+      <section className="mt-8" aria-labelledby="ngo-engagement-heading">
+        <h2 id="ngo-engagement-heading" className="sr-only">
+          Volunteer engagement and retention
+        </h2>
+        <NgoEngagementPanel ngoId={ngoId} />
+      </section>
 
       <section className="mt-8" aria-labelledby="upcoming-events-heading">
         <div className="mb-4 flex items-center justify-between">
