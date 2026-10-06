@@ -18,7 +18,7 @@ import {
   Skeleton,
 } from '../../components/ui';
 import { PageHeader, StatusBadge } from '../../components/shared';
-import { EventForm, MatchesPanel, NgoGate, ParticipationPanel, RegistrationsPanel, RosterPanel, SchedulePanel } from '../../components/ngo';
+import { EventForm, EventIntelligencePanel, MatchesPanel, NgoGate, ParticipationPanel, RegistrationsPanel, RosterPanel, SchedulePanel } from '../../components/ngo';
 
 const LIFECYCLE_SUCCESS: Record<string, string> = {
   published: 'Event published — volunteers can now discover and register for it.',
@@ -250,6 +250,8 @@ function EventDetailsContent({ ngoId, eventId }: { ngoId: string; eventId: strin
               <ParticipationPanel ngoId={ngoId} eventId={eventId} />
 
               <SchedulePanel ngoId={ngoId} eventId={eventId} />
+
+              <EventIntelligencePanel ngoId={ngoId} eventId={eventId} />
 
               <MatchesPanel ngoId={ngoId} eventId={eventId} />
             </div>

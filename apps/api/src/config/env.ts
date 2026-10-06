@@ -22,6 +22,11 @@ export const config = {
   agent: {
     serviceUrl: process.env.AGENT_SERVICE_URL || 'http://localhost:8000',
     secret: process.env.AGENT_SERVICE_SECRET || '',
+    // Event Intelligence LLM (Step 16) — optional. When unset, the
+    // deterministic rules provider is used and the response says so.
+    llmApiKey: process.env.AGENT_LLM_API_KEY || '',
+    llmBaseUrl: process.env.AGENT_LLM_BASE_URL || '',
+    llmModel: process.env.AGENT_LLM_MODEL || '',
   },
   logLevel: process.env.LOG_LEVEL || 'info',
 };

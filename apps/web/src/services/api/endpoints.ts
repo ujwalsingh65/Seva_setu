@@ -290,6 +290,28 @@ export async function getNgoEventMatches(
 }
 
 // ---------------------------------------------------------------------------
+// Step 15 — NGO transparency & activity profile
+// ---------------------------------------------------------------------------
+
+export interface NgoTransparency {
+  organization: { id: string; name: string; description: string | null; causes: string[] | null; region: string | null };
+  transparency: { activity_source: string; service_hours_status: 'recorded' | 'not_recorded'; verification_note: string };
+  activity: {
+    completed_events: number;
+    verified_participations: number;
+    unique_volunteers: number;
+    verified_service_hours: number | null;
+    emergency_events_supported: number;
+    returning_volunteers: number;
+  };
+  recent_events: Array<{ event_id: string; title: string | null; event_type: string | null; start_at: string | null; participation_count: number; service_hours: number | null }>;
+}
+
+export async function getNgoTransparency(token: string, ngoId: string): Promise<NgoTransparency> {
+  return (await apiClient<NgoTransparency>(`/ngos/${ngoId}/transparency`, { token })).data;
+}
+
+// ---------------------------------------------------------------------------
 // Step 14 — Karma / verified community impact
 // ---------------------------------------------------------------------------
 

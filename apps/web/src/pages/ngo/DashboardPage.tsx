@@ -19,6 +19,7 @@ import {
 } from '../../components/ui';
 import { PageHeader, StatusBadge } from '../../components/shared';
 import { NgoEngagementPanel, NgoGate } from '../../components/ngo';
+import { NgoTransparencyCard } from '../../components/volunteer/NgoTransparencyCard';
 
 const ACTIVE_EVENT_STATUSES = ['draft', 'published', 'in_progress'] as const;
 
@@ -136,6 +137,13 @@ function DashboardContent({ ngoId, ngoName }: { ngoId: string; ngoName: string }
           Volunteer engagement and retention
         </h2>
         <NgoEngagementPanel ngoId={ngoId} />
+      </section>
+
+      <section className="mt-8" aria-labelledby="ngo-transparency-heading">
+        <h2 id="ngo-transparency-heading" className="sr-only">
+          Public profile preview
+        </h2>
+        <NgoTransparencyCard ngoId={ngoId} />
       </section>
 
       <section className="mt-8" aria-labelledby="upcoming-events-heading">

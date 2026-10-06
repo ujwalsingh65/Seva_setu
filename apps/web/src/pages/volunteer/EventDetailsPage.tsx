@@ -35,6 +35,7 @@ import {
   SkeletonCard,
 } from '../../components/ui';
 import { StatusBadge } from '../../components/shared';
+import { NgoTransparencyCard } from '../../components/volunteer/NgoTransparencyCard';
 
 const ACTIVE_APPLICATION_STATUSES = ['interested', 'accepted', 'waitlisted'] as const;
 
@@ -234,6 +235,7 @@ export function VolunteerEventDetailsPage() {
               </CardContent>
             </Card>
           )}
+          {event.ngo_id && <NgoTransparencyCard ngoId={event.ngo_id} />}
         </div>
 
         <div className="space-y-4">
