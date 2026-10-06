@@ -202,3 +202,56 @@ export async function getNgoEventRoster(token: string, ngoId: string, eventId: s
     await apiClient<NgoEventRoster>(`/ngos/${ngoId}/events/${eventId}/roster`, { token })
   ).data;
 }
+
+// ---------------------------------------------------------------------------
+// Step 8 — Explainable weighted matching
+// ---------------------------------------------------------------------------
+
+export type MatchFactorStatus = 'full' | 'partial' | 'none' | 'not_assessable';
+
+export interface MatchListFactor {
+  score: number;
+  weight: number;
+  status: MatchFactorStatus;
+  label?: string;
+  detail?: string;
+}
+
+export interface MatchSkillFactor extends MatchListFactor {
+  matched: string[];
+  missing: string[];
+}
+
+export interface MatchFactors {
+  skills: MatchSkillFactor;
+  certifications: MatchSkillFactor;
+  availability: MatchListFactor;
+  experience: MatchListFactor;
+  proximity: MatchListFactor;
+  reliability: MatchListFactor;
+}
+
+export interface EventMatch {
+  volunteer_id: string;
+  score: number;
+  volunteer: PublicVolunteerInfo;
+  factors: MatchFactors;
+}
+
+export interface NgoEventMatches {
+  event_id: string;
+  total_candidates: number;
+  matches: EventMatch[];
+}
+
+export async function getNgoEventMatches(
+  token: string,
+  ngoId: string,
+  eventId: string,
+): Promise<NgoEventMatches> {
+  const { data } = await apiClient<NgoEventMatches>(
+    `/ngos/${ngoId}/events/${eventId}/matches`,
+    { token },
+  );
+  return data;
+}

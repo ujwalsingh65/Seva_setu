@@ -70,13 +70,13 @@ function pointToEwkt(
   return `SRID=4326;POINT(${point.lng} ${point.lat})`;
 }
 
-function routeParam(req: Request, name: string): string {
+export function routeParam(req: Request, name: string): string {
   const value = req.params[name];
   if (typeof value !== 'string') throw new AppError('Invalid request path.', 400, 'INVALID_INPUT');
   return value;
 }
 
-function databaseError(error: { code?: string; constraint?: string }): AppError {
+export function databaseError(error: { code?: string; constraint?: string }): AppError {
   if (error.code === '23505') {
     return new AppError('A record with these details already exists.', 409, 'DUPLICATE_RECORD');
   }
@@ -95,11 +95,11 @@ function databaseError(error: { code?: string; constraint?: string }): AppError 
   return new AppError('The database operation could not be completed.', 500, 'DATABASE_ERROR');
 }
 
-function badInput(error: z.ZodError): AppError {
+export function badInput(error: z.ZodError): AppError {
   return new AppError(error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; '), 400, 'INVALID_INPUT');
 }
 
-async function authorizeNgoMember(userId: string, appRole: string, ngoId: string, adminOnly = false) {
+export async function authorizeNgoMember(userId: string, appRole: string, ngoId: string, adminOnly = false) {
   if (appRole !== USER_ROLES.NGO_ADMIN && appRole !== USER_ROLES.NGO_COORDINATOR) {
     throw new AppError('You are not authorized to manage this NGO.', 403, 'FORBIDDEN');
   }
