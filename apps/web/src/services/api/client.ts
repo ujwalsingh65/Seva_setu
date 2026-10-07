@@ -3,7 +3,13 @@
  * Communicates with the Express API (/api/v1)
  */
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+
+if (import.meta.env.PROD && !configuredApiBaseUrl) {
+  throw new Error('VITE_API_BASE_URL must be configured for production deployments.');
+}
+
+export const API_BASE_URL = configuredApiBaseUrl || 'http://localhost:5000/api/v1';
 
 export class ApiError extends Error {
   readonly code: string;

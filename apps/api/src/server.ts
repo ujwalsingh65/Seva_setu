@@ -61,7 +61,6 @@ app.get('/api/v1/health', (_req, res) => {
     status: 'ok',
     service: 'sevasetu-api',
     timestamp: new Date().toISOString(),
-    env: config.env,
   });
 });
 
